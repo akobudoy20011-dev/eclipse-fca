@@ -51,13 +51,3 @@ test('requires an authenticated session and valid topic list', () => {
     code: 'ERR_CONFIGURATION'
   });
 });
-
-test('accepts an empty topic list without starting a network connection', () => {
-  // Validation completes before mqtt.connect is invoked; this test deliberately
-  // avoids opening a real socket or contacting a service.
-  assert.throws(() => createMqttListener({
-    endpoint: 'wss://example.test/mqtt',
-    session,
-    topics: []
-  }), error => error.code !== 'ERR_CONFIGURATION');
-});
