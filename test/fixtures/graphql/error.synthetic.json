@@ -1,0 +1,7 @@
+{
+  "fixtureType": "graphql-response",
+  "provenance": "synthetic",
+  "protocolVerified": false,
+  "encoding": "utf8",
+  "payload": "{\"errors\":[{\"message\":\"Synthetic validation error\",\"code\":100}],\"data\":null}"
+}
