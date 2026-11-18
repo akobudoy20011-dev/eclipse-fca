@@ -6,6 +6,7 @@ const { MemorySessionStore } = require('../storage/memory-store');
 const { createRequestClient } = require('./request');
 const { loginWithAppState } = require('./login');
 const { serializeCookies } = require('../utils/cookies');
+const { isFacebookHttpsUrl } = require('../utils/url-security');
 const { loadApi } = require('./api-loader');
 const { createMqttListener } = require('../mqtt/client');
 const { StateError, TransportError } = require('./errors');
@@ -30,7 +31,6 @@ function createClient(options = {}) {
   const client = {
     get state() { return state; },
     get config() { return config; },
-    get sessionStore() { return sessionStore; },
     get session() {
       return session ? {
         userId: session.userId,
@@ -41,7 +41,8 @@ function createClient(options = {}) {
     get api() { return api; },
     request(input) {
       const headers = { ...(input?.headers || {}) };
-      if (session && !Object.keys(headers).some(key => key.toLowerCase() === 'cookie')) {
+      const hasCookie = Object.keys(headers).some(key => key.toLowerCase() === 'cookie');
+      if (session && !hasCookie && isFacebookHttpsUrl(input?.url)) {
         headers.cookie = serializeCookies(session.cookies);
       }
       return requestClient.request({ ...input, headers });
