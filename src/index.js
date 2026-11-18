@@ -4,9 +4,11 @@ const { createClient } = require('./core/client');
 const { normalizeConfig, DEFAULT_CONFIG } = require('./core/config');
 const { EclipseFcaError, ConfigurationError, TransportError, StateError } = require('./core/errors');
 const { MemorySessionStore } = require('./storage/memory-store');
+const { createNetworkEngine } = require('./network/engine');
 
 module.exports = {
   createClient,
+  createNetworkEngine,
   normalizeConfig,
   DEFAULT_CONFIG,
   MemorySessionStore,
