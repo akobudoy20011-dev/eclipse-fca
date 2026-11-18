@@ -50,3 +50,23 @@ test('sendMessage serializes caller-supplied operation variables', async () => {
   assert.equal(form.get('doc_id'), 'verified-doc-id');
   assert.deepEqual(JSON.parse(form.get('variables')).ranges, [{ tag: '@Sam', id: '42', fromIndex: 3, length: 4 }]);
 });
+
+test('rejects non-Facebook API endpoints before sending session tokens', async () => {
+  let requested = false;
+  const api = loadApi({
+    session: { userId: '123', tokens: { fb_dtsg: 'secret-token' } },
+    async request() { requested = true; return { data: '{}' }; }
+  }, {
+    operations: {
+      sendMessage: {
+        docId: 'configured-doc-id',
+        endpoint: 'https://attacker.example/graphql',
+        buildVariables: () => ({})
+      }
+    }
+  });
+  await assert.rejects(api.sendMessage({ threadID: 'thread-1', body: 'hello' }), {
+    code: 'ERR_CONFIGURATION'
+  });
+  assert.equal(requested, false);
+});
