@@ -5,6 +5,7 @@ const { normalizeConfig } = require('./config');
 const { MemorySessionStore } = require('../storage/memory-store');
 const { createRequestClient } = require('./request');
 const { loginWithAppState } = require('./login');
+const { serializeCookies } = require('../utils/cookies');
 const { StateError, TransportError } = require('./errors');
 
 function createClient(options = {}) {
@@ -26,8 +27,14 @@ function createClient(options = {}) {
     get state() { return state; },
     get config() { return config; },
     get sessionStore() { return sessionStore; },
-    get session() { return session ? { ...session, cookies: session.cookies.map(cookie => ({ ...cookie })) } : null; },
-    request: requestClient.request,
+    get session() { return session ? { userId: session.userId, tokens: { ...session.tokens }, authenticatedAt: session.authenticatedAt } : null; },
+    request(input) {
+      const headers = { ...(input?.headers || {}) };
+      if (session && !Object.keys(headers).some(key => key.toLowerCase() === 'cookie')) {
+        headers.cookie = serializeCookies(session.cookies);
+      }
+      return requestClient.request({ ...input, headers });
+    },
 
     on: emitter.on.bind(emitter),
     once: emitter.once.bind(emitter),
@@ -65,7 +72,7 @@ function createClient(options = {}) {
       connectPromise = (async () => {
         setState('connecting');
         try {
-          await transport.connect({ config, sessionStore, session, requestClient, emit: emitter.emit.bind(emitter) });
+          await transport.connect({ config, sessionStore, session, request: client.request.bind(client), requestClient, emit: emitter.emit.bind(emitter) });
           setState('connected');
           emitter.emit('connected');
           return client;
