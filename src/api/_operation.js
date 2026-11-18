@@ -84,7 +84,7 @@ function createOperationExecutor(client, operationMap = {}, outboundQueue = null
     };
     const isMutation = operation.mutation !== false && name !== 'getThreadInfo';
     if (outboundQueue && isMutation) {
-      return outboundQueue.run({ endpoint, threadId: input.threadID || input.threadId }, send);
+      return outboundQueue.run({ endpoint, threadId: input.threadID || input.threadId || input.postID }, send);
     }
     return send();
   };
