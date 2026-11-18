@@ -70,3 +70,55 @@ test('rejects non-Facebook API endpoints before sending session tokens', async (
   });
   assert.equal(requested, false);
 });
+
+test('sendMessage runs the optional typing hook before its mutation', async () => {
+  const { OutboundOperationQueue } = require('../src/core/outbound-queue');
+  const events = [];
+  const queue = new OutboundOperationQueue({
+    enabled: true,
+    mutationJitterMinMs: 0,
+    mutationJitterMaxMs: 0,
+    bucketCapacity: 10,
+    refillPerSecond: 100
+  }, { sleep: async () => {}, random: () => 0 });
+  const client = {
+    session: { userId: '123', tokens: { fb_dtsg: 'token' } },
+    async request() { events.push('send'); return { data: '{"data":{"ok":true}}', status: 200 }; }
+  };
+  const api = loadApi(client, {
+    outboundQueue: queue,
+    hooks: {
+      async sendTypingIndicator(event) {
+        assert.deepEqual(event, { threadID: 'thread-1', state: 'typ' });
+        events.push('typing');
+      }
+    },
+    operations: {
+      sendMessage: {
+        docId: 'verified-doc-id',
+        buildVariables: input => ({ threadID: input.threadID, body: input.body })
+      }
+    }
+  });
+  await api.sendMessage({ threadID: 'thread-1', body: 'hello', typingIndicator: true });
+  assert.deepEqual(events, ['typing', 'send']);
+});
+
+test('sendMessage does not pretend to send typing without an explicit hook', async () => {
+  const api = loadApi({
+    session: { userId: '123', tokens: { fb_dtsg: 'token' } },
+    async request() { throw new Error('request should not run'); }
+  }, {
+    operations: {
+      sendMessage: {
+        docId: 'verified-doc-id',
+        buildVariables: () => ({})
+      }
+    }
+  });
+  await assert.rejects(api.sendMessage({
+    threadID: 'thread-1',
+    body: 'hello',
+    typingIndicator: true
+  }), /application-provided sendTypingIndicator hook/);
+});
