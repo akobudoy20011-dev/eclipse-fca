@@ -35,7 +35,7 @@ function createRequestClient(config, options = {}) {
       return await instance.request({
         method: input.method || 'GET',
         url: input.url,
-        headers: input.headers,
+        headers: { ...(input.headers || {}), ...createBrowserHeaders(config.browserProfile) },
         params: input.params,
         data: input.data,
         timeout: input.timeout,
