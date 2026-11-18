@@ -24,8 +24,9 @@ async function loginWithAppState(options = {}) {
     responseType: 'text'
   });
   const location = String(response.headers?.location || '');
-  if (/\/checkpoint(?:\/|\?|$)/i.test(location) ||
-      (/\/(?:login|recover)(?:\/|\?|$)/i.test(location) && response.status >= 300 && response.status < 400)) {
+  if (response.status === 401 || response.status === 403 ||
+      /\/checkpoint(?:\/|\?|$)/i.test(location) ||
+      (/\/(?:login(?:\.php)?|recover)(?:\/|\?|$)/i.test(location) && response.status >= 300 && response.status < 400)) {
     throw new TransportError('The supplied session was redirected to an authentication or checkpoint page.', {
       code: 'ERR_AUTH_SESSION_REJECTED'
     });
