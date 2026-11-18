@@ -10,8 +10,8 @@ function createProxyAgents(proxyUrl) {
   let parsed;
   try {
     parsed = new URL(proxyUrl);
-  } catch (cause) {
-    throw new ConfigurationError('network.proxy must be a valid URL.', { cause });
+  } catch {
+    throw new ConfigurationError('network.proxy must be a valid URL.');
   }
 
   const protocol = parsed.protocol.toLowerCase();
@@ -32,10 +32,9 @@ function createProxyAgents(proxyUrl) {
       httpAgent: new HttpProxyAgent(parsed),
       httpsAgent: new HttpsProxyAgent(parsed)
     };
-  } catch (cause) {
+  } catch {
     throw new TransportError('Could not initialize the configured proxy agent.', {
-      code: 'ERR_PROXY_INITIALIZATION',
-      cause
+      code: 'ERR_PROXY_INITIALIZATION'
     });
   }
 }
