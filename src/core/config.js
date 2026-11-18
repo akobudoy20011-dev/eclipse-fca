@@ -15,7 +15,8 @@ const DEFAULT_CONFIG = Object.freeze({
     })
   }),
   session: Object.freeze({
-    storage: 'memory'
+    storage: 'memory',
+    directory: null
   }),
   diagnostics: Object.freeze({
     enabled: true
@@ -72,8 +73,15 @@ function normalizeConfig(input = {}) {
   }
 
   const storage = sessionInput.storage ?? DEFAULT_CONFIG.session.storage;
-  if (storage !== 'memory') {
-    throw new ConfigurationError('Only memory session storage is available in this foundation release.');
+  const directory = sessionInput.directory ?? null;
+  if (!['memory', 'file'].includes(storage)) {
+    throw new ConfigurationError('session.storage must be "memory" or "file".');
+  }
+  if (storage === 'file' && (typeof directory !== 'string' || !directory.trim())) {
+    throw new ConfigurationError('session.directory is required when session.storage is "file".');
+  }
+  if (storage === 'memory' && directory !== null) {
+    throw new ConfigurationError('session.directory must be null when session.storage is "memory".');
   }
 
   return Object.freeze({
@@ -88,7 +96,7 @@ function normalizeConfig(input = {}) {
         maxDelay
       })
     }),
-    session: Object.freeze({ storage }),
+    session: Object.freeze({ storage, directory }),
     diagnostics: Object.freeze({
       enabled: diagnosticsInput.enabled ?? DEFAULT_CONFIG.diagnostics.enabled
     })
