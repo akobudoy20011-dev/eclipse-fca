@@ -64,7 +64,7 @@ test('injects API methods only after login and does not expose the raw session s
   assert.equal(typeof client.api.commentPost, 'function');
   assert.equal(typeof client.api.joinCall, 'function');
   assert.equal(typeof client.api.getThreadInfo, 'function');
-  assert.deepEqual(Object.keys(client.session).sort(), ['authenticatedAt', 'tokens', 'userId']);
+  assert.deepEqual(Object.keys(client.session).sort(), ['authenticatedAt', 'userId']);
 });
 
 test('automatically attaches cookies only to HTTPS Facebook hosts', async () => {
