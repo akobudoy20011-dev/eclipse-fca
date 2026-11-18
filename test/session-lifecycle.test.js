@@ -92,6 +92,15 @@ test('refresh mutex coalesces concurrent refreshes and blocks waiting requests',
   assert.equal((await store.get('default')).tokens.fb_dtsg, 'token-two');
 });
 
+test('session invalidation aborts the session-wide in-flight request signal', async () => {
+  const manager = new SessionManager({ sessionStore: new MemorySessionStore() });
+  await manager.setSession(session);
+  const signal = manager.getAbortSignal();
+  assert.equal(signal.aborted, false);
+  await manager.invalidate('auth_error');
+  assert.equal(signal.aborted, true);
+});
+
 test('session circuit breaker trips once and blocks future work', () => {
   const breaker = new SessionCircuitBreaker();
   assert.equal(breaker.trip('checkpoint'), true);
@@ -111,6 +120,7 @@ test('expiry classifier recognizes checkpoint redirects and auth error codes', (
     headers: {},
     data: '{"errors":[{"code":1357004}]}'
   }), 'auth_error');
+  assert.equal(responseExpiryReason({ status: 302, headers: { location: '/login.php' }, data: '' }), 'logout_redirect');
   assert.equal(responseExpiryReason({ status: 200, headers: {}, data: 'normal response' }), null);
 });
 
