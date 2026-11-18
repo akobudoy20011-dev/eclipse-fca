@@ -83,3 +83,29 @@ joinCall invokes a configured operation and forwards any returned signaling data
 This release accepts an existing authorized appState session. It does not collect passwords, evade checkpoints, bypass two-factor challenges, rotate identities to evade detection, or retry through security challenges. Token extraction is best-effort; automatic token-expiry refresh is not yet verified. Never log or commit appState cookies, tokens, proxy credentials, or raw session objects.
 
 Use only accounts and sessions you are authorized to access, and respect platform terms and rate limits.
+
+
+## Session durability and lifecycle
+
+The default session store remains in-memory. For opt-in disk persistence, inject the file-backed store:
+
+```js
+const path = require('node:path');
+const { createClient, FileSessionStore } = require('eclipse-fca');
+
+const sessionStore = new FileSessionStore({
+  directory: path.join(process.cwd(), '.eclipse-sessions')
+});
+const client = createClient({ sessionStore });
+await client.login(appState);
+```
+
+The file store hashes session keys into filenames, writes a temporary file with mode `0600`, flushes it, then atomically renames it into place. Its directory is created with mode `0700`. Session contents necessarily include authentication cookies; protect the directory, backups, and host account. Disk persistence is opt-in and is not encryption at rest.
+
+When HTTP responses rotate any of `xs`, `c_user`, `fr`, `sb`, or `datr`, the normalized cookie set is persisted before the request completes. Other cookie updates remain in memory until a critical cookie rotates or the next explicit session write occurs.
+
+After login, a refresh scheduler fetches the configured Facebook session page (default `https://www.facebook.com/`) roughly every 45 minutes with ±5 minutes of jitter. It extracts tokens from the returned page; no private refresh endpoint is assumed. Configure `session.refresh.intervalMs`, `session.refresh.jitterMs`, or `session.refreshUrl` if required. Concurrent client HTTP/API requests wait while a refresh is active. Failed extraction emits `token_refresh_error`; it does not fabricate new tokens.
+
+A detected checkpoint redirect, logout redirect, missing required session cookie, or known authentication error trips a terminal session circuit breaker. The client stops its refresh timer, closes MQTT and the injected transport, persists `invalidated: true`, emits `session_expired`, and rejects subsequent requests until the application explicitly logs in again with a valid authorized appState.
+
+The refresh mechanism can reduce stale-token reuse, but it cannot guarantee that Facebook will preserve a session. Server-side security decisions, checkpoints, revocation, password changes, and account restrictions remain outside the library's control.
