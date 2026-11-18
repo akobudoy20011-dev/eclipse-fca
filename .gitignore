@@ -6,3 +6,28 @@ coverage/
 !.env.example
 *.log
 .DS_Store
+
+# Local Messenger authentication and session material
+.eclipse-sessions/
+sessions/
+*.session
+*.cookie
+appstate*.json
+app-state*.json
+cookies*.json
+auth*.json
+
+# Private keys, certificates, and local package credentials
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+!.npmrc.example
+.secrets/
+
+# Raw network captures can contain credentials and personal data
+*.har
+*.pcap
+*.pcapng
+captures/private/
