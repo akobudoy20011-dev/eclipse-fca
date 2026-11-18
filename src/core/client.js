@@ -134,7 +134,10 @@ function createClient(options = {}) {
           return client;
         } catch (cause) {
           setState('error');
-          const error = new TransportError('Transport connection failed.', { cause });
+          const error = new TransportError('Transport connection failed.', {
+            code: 'ERR_TRANSPORT',
+            details: { transportCode: typeof cause?.code === 'string' ? cause.code : undefined }
+          });
           emitter.emit('error', error);
           throw error;
         } finally {
