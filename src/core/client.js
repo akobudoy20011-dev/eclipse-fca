@@ -115,7 +115,6 @@ function createClient(options = {}) {
         userId: current.userId,
         tokens: { ...current.tokens },
         authenticatedAt: current.authenticatedAt,
-        invalidated: Boolean(current.invalidated)
       } : null;
     },
     get api() { return api; },
