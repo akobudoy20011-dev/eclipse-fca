@@ -51,3 +51,13 @@ An injected client transport may implement connect({ config, sessionStore, sessi
 ## Protocol fixture workflow
 
 The test suite replays deterministic synthetic MQTT and GraphQL fixtures from test/fixtures. These prove parser and error-handling behavior only; they are not real Messenger captures and do not establish protocol compatibility. Real authorized captures must be sanitized offline, reviewed for secrets and personal data, reduced to minimal fixtures, and accompanied by provenance and verification notes before they are committed. Fixture tests are offline and must never require a live account or session.
+
+
+## Session durability, refresh and invalidation
+
+- `MemorySessionStore` remains the default. `FileSessionStore` is an opt-in store with hashed key filenames, mode-0600 temporary files, atomic rename, and a mode-0700 directory. It does not encrypt session data at rest.
+- Critical cookie rotations (`xs`, `c_user`, `fr`, `sb`, `datr`) are merged into the normalized cookie state and persisted before the HTTP request returns.
+- A jittered scheduler refreshes page-derived `fb_dtsg`, `lsd`, and `jazoest` by fetching the configured Facebook session page. The default is 45 minutes ±5 minutes. This is a best-effort page-token refresh, not a guarantee of session longevity or a claim about server token expiry.
+- A refresh mutex serializes refresh work; client HTTP/API calls wait for an active refresh to settle.
+- Checkpoint/logout redirects, known authentication error codes, and removal of required `c_user`/`xs` cookies trip a terminal circuit breaker. The session is persisted as invalidated, the realtime transports and scheduler are stopped, and `session_expired` is emitted.
+- A fresh explicit login creates a new session manager/breaker. No automatic checkpoint retry or authentication bypass is attempted.
