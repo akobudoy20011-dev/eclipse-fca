@@ -163,6 +163,7 @@ function createClient(options = {}) {
         onError: event => emitter.emit('token_refresh_error', event)
       });
       refreshScheduler.start();
+      if (state === 'invalidated' || state === 'error') setState('idle');
       emitter.emit('login', { userId: initialSession.userId });
       emitter.emit('api-ready', Object.keys(api));
       return { userId: initialSession.userId, tokens: { ...initialSession.tokens }, api };
