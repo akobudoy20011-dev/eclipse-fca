@@ -1,0 +1,7 @@
+{
+  "fixtureType": "graphql-response",
+  "provenance": "synthetic",
+  "protocolVerified": false,
+  "encoding": "utf8",
+  "payload": "{\"data\":{\"sendMessage\":{\"status\":\"SENT\",\"message_id\":\"MESSAGE_A\"}}}"
+}
