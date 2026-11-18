@@ -124,3 +124,54 @@ test('client request profile overrides conflicting browser identity headers', as
   assert.equal(captured.headers['sec-ch-ua'], '"Chromium";v="131"');
   assert.equal(captured.headers['sec-fetch-mode'], 'cors');
 });
+
+test('client loads a custom operation registry and applies verified descriptors', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eclipse-client-registry-'));
+  const registryPath = path.join(dir, 'operations.json');
+  fs.writeFileSync(registryPath, JSON.stringify({
+    schemaVersion: 1,
+    operations: {
+      getThreadInfo: {
+        doc_id: 'synthetic-verified-id',
+        endpoint: 'https://www.facebook.com/api/graphql/',
+        friendly_name: 'GetThreadInfo',
+        mutation: false,
+        input_schema: {
+          type: 'object',
+          required: ['threadID'],
+          additionalProperties: false,
+          properties: { threadID: { type: 'string' } }
+        },
+        variables: { input: { threadID: { '$input': 'threadID' } } }
+      }
+    }
+  }));
+  let sent;
+  try {
+    const client = createClient({
+      operationRegistryPath: registryPath,
+      pacing: { mutationJitterMinMs: 0, mutationJitterMaxMs: 0 },
+      requestClient: {
+        async request(input) {
+          sent = input;
+          return { data: '{"data":{"thread":{"id":"thread-1"}}}', status: 200, headers: {} };
+        }
+      }
+    });
+    await client.login([
+      { key: 'c_user', value: '12345' },
+      { key: 'xs', value: 'session-cookie' }
+    ]);
+    const result = await client.api.getThreadInfo('thread-1');
+    assert.deepEqual(result, { data: { thread: { id: 'thread-1' } } });
+    assert.equal(new URLSearchParams(sent.data).get('doc_id'), 'synthetic-verified-id');
+    assert.deepEqual(JSON.parse(new URLSearchParams(sent.data).get('variables')), {
+      input: { threadID: 'thread-1' }
+    });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
