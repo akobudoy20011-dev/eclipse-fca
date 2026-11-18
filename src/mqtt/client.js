@@ -40,7 +40,10 @@ function createMqttListener(options = {}) {
   connection.on('connect', () => {
     emitter.emit('connect');
     if (topics.length) connection.subscribe(topics, error => {
-      if (error) emitter.emit('error', new TransportError('MQTT topic subscription failed.', { cause: error }));
+      if (error) emitter.emit('error', new TransportError('MQTT topic subscription failed.', {
+        code: 'ERR_MQTT_SUBSCRIBE',
+        details: { transportCode: typeof error.code === 'string' ? error.code : undefined }
+      }));
       else emitter.emit('subscribed', topics.slice());
     });
   });
@@ -54,7 +57,10 @@ function createMqttListener(options = {}) {
   connection.on('reconnect', () => emitter.emit('reconnect'));
   connection.on('close', () => emitter.emit('close'));
   connection.on('offline', () => emitter.emit('offline'));
-  connection.on('error', error => emitter.emit('error', new TransportError('MQTT connection error.', { cause: error })));
+  connection.on('error', error => emitter.emit('error', new TransportError('MQTT connection error.', {
+    code: 'ERR_MQTT_CONNECTION',
+    details: { transportCode: typeof error.code === 'string' ? error.code : undefined }
+  })));
 
   return Object.freeze({
     on: emitter.on.bind(emitter),
