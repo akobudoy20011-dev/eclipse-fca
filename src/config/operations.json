@@ -9,9 +9,34 @@
       "mutation": true,
       "variables": {
         "input": {
-          "threadID": { "$input": "threadID" },
-          "body": { "$input": "body" },
-          "mentions": { "$input": "mentions" }
+          "threadID": {
+            "$input": "threadID"
+          },
+          "body": {
+            "$input": "body"
+          },
+          "mentions": {
+            "$input": "mentions"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID",
+          "body"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "mentions": {
+            "type": "array"
+          }
         }
       }
     },
@@ -22,10 +47,41 @@
       "mutation": true,
       "variables": {
         "input": {
-          "threadID": { "$input": "threadID" },
-          "question": { "$input": "question" },
-          "options": { "$input": "options" },
-          "allowMultiple": { "$input": "allowMultiple" }
+          "threadID": {
+            "$input": "threadID"
+          },
+          "question": {
+            "$input": "question"
+          },
+          "options": {
+            "$input": "options"
+          },
+          "allowMultiple": {
+            "$input": "allowMultiple"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID",
+          "question",
+          "options"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array"
+          },
+          "allowMultiple": {
+            "type": "boolean"
+          }
         }
       }
     },
@@ -36,9 +92,35 @@
       "mutation": true,
       "variables": {
         "input": {
-          "postID": { "$input": "postID" },
-          "message": { "$input": "message" },
-          "parentCommentID": { "$inputOptional": "parentCommentID" }
+          "postID": {
+            "$input": "postID"
+          },
+          "message": {
+            "$input": "message"
+          },
+          "parentCommentID": {
+            "$inputOptional": "parentCommentID"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "postID",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "postID": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "parentCommentID": {
+            "type": "string",
+            "nullable": true
+          }
         }
       }
     },
@@ -49,8 +131,28 @@
       "mutation": true,
       "variables": {
         "input": {
-          "threadID": { "$input": "threadID" },
-          "callType": { "$input": "callType" }
+          "threadID": {
+            "$input": "threadID"
+          },
+          "callType": {
+            "$input": "callType"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID",
+          "callType"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          },
+          "callType": {
+            "type": "string"
+          }
         }
       }
     },
@@ -61,7 +163,21 @@
       "mutation": false,
       "variables": {
         "input": {
-          "threadID": { "$input": "threadID" }
+          "threadID": {
+            "$input": "threadID"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          }
         }
       }
     }
