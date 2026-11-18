@@ -1,6 +1,7 @@
 'use strict';
 
 const { ConfigurationError, TransportError } = require('../core/errors');
+const { validateFacebookUrl } = require('../utils/url-security');
 
 function createOperationExecutor(client, operationMap = {}) {
   return async function execute(name, input) {
@@ -12,6 +13,7 @@ function createOperationExecutor(client, operationMap = {}) {
       throw new ConfigurationError(`API operation "${name}" requires a verified docId.`);
     }
     const endpoint = operation.endpoint || 'https://www.facebook.com/api/graphql/';
+    validateFacebookUrl(endpoint, 'https:', `API operation "${name}" endpoint`);
     let variables;
     if (typeof operation.buildVariables === 'function') {
       variables = await operation.buildVariables(input, client.session);
