@@ -3,6 +3,7 @@
 const axios = require('axios');
 const { createProxyAgents } = require('./proxy');
 const { TransportError } = require('./errors');
+const { validateFacebookUrl } = require('../utils/url-security');
 
 function createRequestClient(config, options = {}) {
   const agents = config.network.mode === 'proxy'
@@ -11,7 +12,7 @@ function createRequestClient(config, options = {}) {
 
   const instance = (options.axios ?? axios).create({
     timeout: config.network.timeout,
-    maxRedirects: 5,
+    maxRedirects: 0,
     validateStatus: status => status >= 200 && status < 400,
     headers: {
       'accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
@@ -27,6 +28,7 @@ function createRequestClient(config, options = {}) {
     if (!input || typeof input !== 'object' || typeof input.url !== 'string') {
       throw new TypeError('request requires an options object with a URL.');
     }
+    validateFacebookUrl(input.url, 'https:', 'HTTP request URL');
     try {
       return await instance.request({
         method: input.method || 'GET',
