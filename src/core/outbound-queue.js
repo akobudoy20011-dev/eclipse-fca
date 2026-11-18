@@ -69,7 +69,7 @@ class OutboundOperationQueue {
     try {
       if (this.closed) throw new StateError('Outbound operation queue is closed.');
       const endpointWait = this.reserve('endpoint:' + endpointKey);
-      const threadWait = this.reserve('thread:' + queueKey);
+      const threadWait = this.reserve('thread:' + threadKey);
       const jitterRange = this.options.mutationJitterMaxMs - this.options.mutationJitterMinMs;
       const jitter = this.options.mutationJitterMinMs + Math.floor(this.random() * (jitterRange + 1));
       await this.sleep(Math.max(endpointWait, threadWait) + jitter);
