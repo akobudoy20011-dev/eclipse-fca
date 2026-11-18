@@ -75,7 +75,7 @@ The test suite replays deterministic synthetic MQTT and GraphQL fixtures from te
 
 - The default registry is `src/config/operations.json`; it defines descriptors for the five API methods with null `doc_id` placeholders. The placeholders are deliberately non-executable until replaced with verified IDs.
 - `createClient({ operationRegistryPath })` loads an alternate JSON registry. The file must use schema version 1. `apiOperations` programmatic descriptors override matching registry entries.
-- JSON variable templates support literal values and explicit `$input`, `$inputOptional`, and `$session` references. They are resolved as data and never evaluated as JavaScript.
+- JSON `input_schema` definitions validate required fields, basic value types, nullable optional fields, and unexpected keys before variables are built. Templates support literal values and explicit `$input`, `$inputOptional`, and `$session` references; they are resolved as data and never evaluated as JavaScript.
 - The operation executor still enforces HTTPS Facebook-owned endpoints and refuses a null/unverified doc ID.
 
 ## MQTT Thrift and LightSpeed framing boundary
