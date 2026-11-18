@@ -98,6 +98,6 @@ test('redacts proxy credentials from the public client configuration', () => {
     requestClient: { async request() { return {}; } }
   });
   assert.equal(client.config.network.mode, 'proxy');
-  assert.ok(client.config.network.proxy.includes('[redacted]'));
+  assert.ok(decodeURIComponent(client.config.network.proxy).includes('[redacted]'));
   assert.equal(client.config.network.proxy.includes('proxy-secret'), false);
 });
