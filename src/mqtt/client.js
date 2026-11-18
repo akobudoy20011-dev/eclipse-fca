@@ -87,7 +87,7 @@ function createMqttListener(options = {}) {
   connection.on('close', () => emitter.emit('close'));
   connection.on('offline', () => emitter.emit('offline'));
   connection.on('error', error => {
-    if (error?.code === '1357001' || error?.code === '1357004') trip('mqtt_auth_rejected');
+    if (['1357001', '1357004'].includes(String(error?.code))) trip('mqtt_auth_rejected');
     emitter.emit('error', new TransportError('MQTT connection error.', {
       code: 'ERR_MQTT_CONNECTION',
       details: { transportCode: typeof error.code === 'string' ? error.code : undefined }
