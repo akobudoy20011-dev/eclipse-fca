@@ -10,11 +10,11 @@ function loadApi(client, options = {}) {
   const operations = options.operations || {};
   const hooks = options.hooks || {};
   return Object.freeze({
-    sendMessage: createSendMessage(client, operations),
-    createPoll: createCreatePoll(client, operations),
-    commentPost: createCommentPost(client, operations),
-    joinCall: createJoinCall(client, operations, hooks),
-    getThreadInfo: createGetThreadInfo(client, operations)
+    sendMessage: createSendMessage(client, operations, hooks, options.outboundQueue),
+    createPoll: createCreatePoll(client, operations, options.outboundQueue),
+    commentPost: createCommentPost(client, operations, options.outboundQueue),
+    joinCall: createJoinCall(client, operations, hooks, options.outboundQueue),
+    getThreadInfo: createGetThreadInfo(client, operations, options.outboundQueue)
   });
 }
 
