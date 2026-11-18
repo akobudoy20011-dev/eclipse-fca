@@ -177,3 +177,46 @@ await client.api.sendMessage({
 ```
 
 Typing runs immediately before the queued send. Incoming MQTT message events can schedule the configured delivery/read hooks after a randomized delay. Acknowledgements are disabled by default, require explicit hooks, and pending timers are cancelled when the listener closes. Hook callbacks receive the normalized event `{ topic, payload, qos, retained }`; they are responsible for implementing only verified receipt behavior.
+
+
+## External operation registry
+
+The default registry is `src/config/operations.json`. It contains descriptors for the five API methods, with `doc_id: null` placeholders. These placeholders intentionally prevent API calls until you provide operation identifiers verified from authorized captures.
+
+You can supply a separate registry file:
+
+```js
+const client = createClient({
+  operationRegistryPath: '/absolute/path/to/operations.json'
+});
+```
+
+Or override individual descriptors in code using `apiOperations`; code overrides take precedence over matching registry entries. Registry variable templates support literal JSON values plus `{"$input":"fieldName"}`, `{"$inputOptional":"fieldName"}`, and `{"$session":"fieldName"}` references. Templates are data only; they are never evaluated as JavaScript. Unknown descriptor keys and unsupported registry versions are rejected.
+
+Example descriptor shape (replace the placeholder only with a verified value):
+
+```json
+{
+  "schemaVersion": 1,
+  "operations": {
+    "sendMessage": {
+      "doc_id": "REPLACE_WITH_VERIFIED_DOC_ID",
+      "endpoint": "https://www.facebook.com/api/graphql/",
+      "friendly_name": "SendMessage",
+      "mutation": true,
+      "variables": {
+        "input": {
+          "threadID": { "$input": "threadID" },
+          "body": { "$input": "body" }
+        }
+      }
+    }
+  }
+}
+```
+
+## MQTT binary codec boundary
+
+The generic Thrift Binary Protocol codec supports bounded struct fields and nested values (bool, byte, double, i16/i32/i64, string, struct, list, set, and map). The MQTT codec recognizes the `/ls_req` and `/ls_resp` topic families and decodes JSON envelopes or explicitly framed ECLIPSE Thrift payloads.
+
+**Important protocol distinction:** the `ECLT` version-1 header is an ECLIPSE-owned test/integration frame (magic, version, kind, payload length). It is not asserted to be Facebook's LightSpeed frame format. Arbitrary binary payloads on LightSpeed topics remain raw until their actual framing and schema are verified from authorized captures. The decoder does not infer Facebook field IDs or message meanings.
