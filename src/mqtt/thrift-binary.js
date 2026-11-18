@@ -120,13 +120,20 @@ function encodeValue(type, value, chunks, depth, limits) {
     case TYPES.STRUCT: encodeStruct(value, chunks, depth + 1, limits); break;
     case TYPES.LIST:
     case TYPES.SET: {
-      if (!value || !Array.isArray(value.values)) throw new ConfigurationError('Thrift list/set requires { elementType, values }.');
+      if (!value || !Array.isArray(value.values) || value.values.length > limits.maxCollectionLength ||
+          !TYPE_NAMES[value.elementType] || value.elementType === TYPES.STOP) {
+        throw new ConfigurationError('Thrift list/set requires a valid element type and bounded values array.');
+      }
       const header = Buffer.alloc(5); header.writeUInt8(value.elementType, 0); header.writeInt32BE(value.values.length, 1); push(header);
       for (const item of value.values) encodeValue(value.elementType, item, chunks, depth + 1, limits);
       break;
     }
     case TYPES.MAP: {
-      if (!value || !Array.isArray(value.entries)) throw new ConfigurationError('Thrift map requires { keyType, valueType, entries }.');
+      if (!value || !Array.isArray(value.entries) || value.entries.length > limits.maxCollectionLength ||
+          !TYPE_NAMES[value.keyType] || value.keyType === TYPES.STOP ||
+          !TYPE_NAMES[value.valueType] || value.valueType === TYPES.STOP) {
+        throw new ConfigurationError('Thrift map requires valid key/value types and a bounded entries array.');
+      }
       const header = Buffer.alloc(6); header.writeUInt8(value.keyType, 0); header.writeUInt8(value.valueType, 1); header.writeInt32BE(value.entries.length, 2); push(header);
       for (const [key, item] of value.entries) {
         encodeValue(value.keyType, key, chunks, depth + 1, limits);
