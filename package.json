@@ -1,0 +1,33 @@
+{
+  "name": "eclipse-fca",
+  "version": "0.2.0",
+  "description": "Independent modular unofficial Messenger client foundation",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check.js",
+    "test:coverage": "c8 npm test"
+  },
+  "keywords": [
+    "eclipse",
+    "messenger",
+    "client",
+    "fca"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
+    "socks-proxy-agent": "^8.0.5",
+    "mqtt": "^5.10.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3"
+  }
+}

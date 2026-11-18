@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "description": "ECLIPSE operation registry. Null doc_id values are intentional placeholders, not working Facebook operation identifiers.",
+  "operations": {
+    "sendMessage": {
+      "doc_id": null,
+      "endpoint": "https://www.facebook.com/api/graphql/",
+      "friendly_name": "SendMessage",
+      "mutation": true,
+      "variables": {
+        "input": {
+          "threadID": {
+            "$input": "threadID"
+          },
+          "body": {
+            "$input": "body"
+          },
+          "mentions": {
+            "$input": "mentions"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID",
+          "body"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "mentions": {
+            "type": "array"
+          }
+        }
+      }
+    },
+    "createPoll": {
+      "doc_id": null,
+      "endpoint": "https://www.facebook.com/api/graphql/",
+      "friendly_name": "CreatePoll",
+      "mutation": true,
+      "variables": {
+        "input": {
+          "threadID": {
+            "$input": "threadID"
+          },
+          "question": {
+            "$input": "question"
+          },
+          "options": {
+            "$input": "options"
+          },
+          "allowMultiple": {
+            "$input": "allowMultiple"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID",
+          "question",
+          "options"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array"
+          },
+          "allowMultiple": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "commentPost": {
+      "doc_id": null,
+      "endpoint": "https://www.facebook.com/api/graphql/",
+      "friendly_name": "CommentPost",
+      "mutation": true,
+      "variables": {
+        "input": {
+          "postID": {
+            "$input": "postID"
+          },
+          "message": {
+            "$input": "message"
+          },
+          "parentCommentID": {
+            "$inputOptional": "parentCommentID"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "postID",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "postID": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "parentCommentID": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "joinCall": {
+      "doc_id": null,
+      "endpoint": "https://www.facebook.com/api/graphql/",
+      "friendly_name": "JoinCall",
+      "mutation": true,
+      "variables": {
+        "input": {
+          "threadID": {
+            "$input": "threadID"
+          },
+          "callType": {
+            "$input": "callType"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID",
+          "callType"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          },
+          "callType": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "getThreadInfo": {
+      "doc_id": null,
+      "endpoint": "https://www.facebook.com/api/graphql/",
+      "friendly_name": "GetThreadInfo",
+      "mutation": false,
+      "variables": {
+        "input": {
+          "threadID": {
+            "$input": "threadID"
+          }
+        }
+      },
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "threadID"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "threadID": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
