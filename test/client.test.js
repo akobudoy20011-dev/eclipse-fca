@@ -88,3 +88,16 @@ test('automatically attaches cookies only to HTTPS Facebook hosts', async () => 
   assert.match(requests[1].headers.cookie, /xs=secret/);
   assert.equal(Object.keys(requests[2].headers).some(key => key.toLowerCase() === 'cookie'), false);
 });
+
+test('redacts proxy credentials from the public client configuration', () => {
+  const client = createClient({
+    network: {
+      mode: 'proxy',
+      proxy: 'http://proxy-user:proxy-secret@proxy.example:8080'
+    },
+    requestClient: { async request() { return {}; } }
+  });
+  assert.equal(client.config.network.mode, 'proxy');
+  assert.ok(client.config.network.proxy.includes('[redacted]'));
+  assert.equal(client.config.network.proxy.includes('proxy-secret'), false);
+});
