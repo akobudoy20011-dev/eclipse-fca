@@ -10,6 +10,10 @@ const { createMqttListener, decodePayload } = require('./mqtt');
 const { normalizeConfig, DEFAULT_CONFIG } = require('./core/config');
 const { EclipseFcaError, ConfigurationError, TransportError, StateError } = require('./core/errors');
 const { MemorySessionStore } = require('./storage/memory-store');
+const { FileSessionStore } = require('./storage/file-store');
+const { SessionManager, responseExpiryReason } = require('./core/session-manager');
+const { SessionCircuitBreaker } = require('./core/circuit-breaker');
+const { TokenRefreshScheduler } = require('./core/token-refresh');
 const { createNetworkEngine } = require('./network/engine');
 const cookies = require('./utils/cookies');
 
@@ -28,6 +32,11 @@ module.exports = {
   normalizeConfig,
   DEFAULT_CONFIG,
   MemorySessionStore,
+  FileSessionStore,
+  SessionManager,
+  SessionCircuitBreaker,
+  TokenRefreshScheduler,
+  responseExpiryReason,
   EclipseFcaError,
   ConfigurationError,
   TransportError,
