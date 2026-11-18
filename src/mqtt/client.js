@@ -5,7 +5,7 @@ const { TransportError, ConfigurationError } = require('../core/errors');
 const { createProxyAgents } = require('../core/proxy');
 const { serializeCookies } = require('../utils/cookies');
 const { validateFacebookUrl } = require('../utils/url-security');
-const { decodePayload } = require('./decoder');
+const { decodeMqttPayload } = require('./codec');
 const { createBrowserHeaders } = require('../utils/browser-profile');
 const { createAcknowledgementDispatcher } = require('./acknowledgements');
 
@@ -85,7 +85,7 @@ function createMqttListener(options = {}) {
     });
   });
   connection.on('message', (topic, payload, packet) => {
-    const decoded = decodePayload(payload);
+    const decoded = decodeMqttPayload(payload, { topic });
     const expiry = expiryReasonFromPayload(decoded, topic);
     if (expiry) {
       trip(expiry);
