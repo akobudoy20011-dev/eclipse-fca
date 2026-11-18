@@ -43,11 +43,11 @@ function createRequestClient(config, options = {}) {
     } catch (cause) {
       throw new TransportError('HTTP request failed.', {
         code: 'ERR_HTTP_REQUEST',
-        cause,
         details: {
           method: input.method || 'GET',
           host: safeHost(input.url),
-          status: cause.response?.status
+          status: cause.response?.status,
+          transportCode: typeof cause.code === 'string' ? cause.code : undefined
         }
       });
     }
