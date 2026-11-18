@@ -25,7 +25,7 @@ test('extracts page tokens from supported HTML/JSON patterns', () => {
   assert.equal(tokens.userId, '12345');
 });
 
-test('appState login persists cookies and extracted tokens without exposing them in errors', async () => {
+test('appState login persists cookies and extracted tokens', async () => {
   let saved;
   const result = await loginWithAppState({
     appState: [{ key: 'c_user', value: '12345' }, { key: 'xs', value: 'secret' }],
@@ -44,4 +44,15 @@ test('appState login persists cookies and extracted tokens without exposing them
   assert.equal(result.tokens.fb_dtsg, 'fresh-token');
   assert.equal(saved.key, 'default');
   assert.ok(result.cookies.some(cookie => cookie.key === 'presence'));
+});
+
+test('rejects an untrusted login URL before sending appState cookies', async () => {
+  let requested = false;
+  await assert.rejects(loginWithAppState({
+    appState: [{ key: 'c_user', value: '12345' }, { key: 'xs', value: 'secret' }],
+    homeUrl: 'https://attacker.example/collect',
+    requestClient: { async request() { requested = true; } },
+    sessionStore: { async set() {} }
+  }), { code: 'ERR_CONFIGURATION' });
+  assert.equal(requested, false);
 });
