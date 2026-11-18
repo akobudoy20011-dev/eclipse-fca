@@ -6,6 +6,8 @@ const { createProxyAgents } = require('../core/proxy');
 const { serializeCookies } = require('../utils/cookies');
 const { validateFacebookUrl } = require('../utils/url-security');
 const { decodePayload } = require('./decoder');
+const { createBrowserHeaders } = require('../utils/browser-profile');
+const { createAcknowledgementDispatcher } = require('./acknowledgements');
 
 function expiryReasonFromPayload(decoded, topic) {
   const text = typeof decoded === 'string' ? decoded : JSON.stringify(decoded ?? '');
@@ -19,7 +21,10 @@ function expiryReasonFromPayload(decoded, topic) {
 }
 
 function createMqttListener(options = {}) {
-  const { endpoint, session, network = { mode: 'direct' }, topics = [], mqttOptions = {} } = options;
+  const {
+    endpoint, session, network = { mode: 'direct' }, topics = [], mqttOptions = {},
+    browserProfile, hooks = {}, acknowledgements = {}
+  } = options;
   validateFacebookUrl(endpoint, 'wss:', 'MQTT endpoint');
   if (!session?.userId || !Array.isArray(session.cookies)) {
     throw new ConfigurationError('An authenticated session is required before starting MQTT.');
@@ -35,7 +40,11 @@ function createMqttListener(options = {}) {
   }
 
   const emitter = new EventEmitter();
-  const headers = { ...(mqttOptions.wsOptions?.headers || {}), cookie: serializeCookies(session.cookies) };
+  const headers = {
+    ...createBrowserHeaders(browserProfile),
+    ...(mqttOptions.wsOptions?.headers || {}),
+    cookie: serializeCookies(session.cookies)
+  };
   const wsOptions = { ...(mqttOptions.wsOptions || {}), headers };
   if (network.mode === 'proxy') {
     const agents = createProxyAgents(network.proxy);
@@ -47,6 +56,11 @@ function createMqttListener(options = {}) {
     reconnectPeriod: 0,
     ...mqttOptions,
     wsOptions
+  });
+  const acknowledgementDispatcher = createAcknowledgementDispatcher({
+    config: acknowledgements,
+    hooks,
+    onError: event => emitter.emit('acknowledgement_error', event)
   });
   let expiryHandled = false;
   const trip = reason => {
@@ -78,13 +92,18 @@ function createMqttListener(options = {}) {
       connection.end(true);
       return;
     }
-    emitter.emit('message', { topic, payload: decoded, qos: packet?.qos ?? 0, retained: Boolean(packet?.retain) });
+    const event = { topic, payload: decoded, qos: packet?.qos ?? 0, retained: Boolean(packet?.retain) };
+    emitter.emit('message', event);
+    acknowledgementDispatcher.dispatch(event);
     if (decoded && typeof decoded === 'object' && typeof decoded.type === 'string') {
       emitter.emit(decoded.type, decoded);
     }
   });
   connection.on('reconnect', () => emitter.emit('reconnect'));
-  connection.on('close', () => emitter.emit('close'));
+  connection.on('close', () => {
+    acknowledgementDispatcher.close();
+    emitter.emit('close');
+  });
   connection.on('offline', () => emitter.emit('offline'));
   connection.on('error', error => {
     if (['1357001', '1357004'].includes(String(error?.code))) trip('mqtt_auth_rejected');
@@ -105,6 +124,7 @@ function createMqttListener(options = {}) {
       return new Promise((resolve, reject) => connection.publish(topic, typeof payload === 'string' ? payload : JSON.stringify(payload), publishOptions || {}, error => error ? reject(new TransportError('MQTT publish failed.', { code: 'ERR_MQTT_PUBLISH' })) : resolve()));
     },
     close() {
+      acknowledgementDispatcher.close();
       return new Promise(resolve => connection.end(false, {}, resolve));
     },
     get connected() { return connection.connected; }
