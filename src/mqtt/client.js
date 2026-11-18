@@ -41,8 +41,8 @@ function createMqttListener(options = {}) {
 
   const emitter = new EventEmitter();
   const headers = {
-    ...createBrowserHeaders(browserProfile),
     ...(mqttOptions.wsOptions?.headers || {}),
+    ...createBrowserHeaders(browserProfile),
     cookie: serializeCookies(session.cookies)
   };
   const wsOptions = { ...(mqttOptions.wsOptions || {}), headers };
