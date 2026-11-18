@@ -1,6 +1,6 @@
 'use strict';
 
-const { mergeSetCookie } = require('../utils/cookies');
+const { mergeSetCookie, serializeCookies } = require('../utils/cookies');
 const { SessionCircuitBreaker } = require('./circuit-breaker');
 const { StateError } = require('./errors');
 
@@ -42,11 +42,18 @@ class SessionManager {
     if (!this.session) return null;
     return {
       userId: this.session.userId,
-      cookies: this.session.cookies.map(cookie => ({ ...cookie })),
       tokens: { ...this.session.tokens },
       authenticatedAt: this.session.authenticatedAt,
       invalidated: Boolean(this.session.invalidated)
     };
+  }
+
+  getCookieHeader() {
+    return this.session ? serializeCookies(this.session.cookies) : '';
+  }
+
+  getCookiesForRefresh() {
+    return this.session ? this.session.cookies.map(cookie => ({ ...cookie })) : [];
   }
 
   async waitForRefresh() {
