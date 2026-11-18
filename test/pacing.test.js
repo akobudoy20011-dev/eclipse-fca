@@ -45,3 +45,39 @@ test('closed outbound queue rejects work', async () => {
     code: 'ERR_STATE'
   });
 });
+
+test('endpoint bucket is shared across different threads', async () => {
+  let now = 0;
+  const delays = [];
+  const queue = new OutboundOperationQueue({
+    mutationJitterMinMs: 400,
+    mutationJitterMaxMs: 400,
+    bucketCapacity: 1,
+    refillPerSecond: 1
+  }, {
+    now: () => now,
+    random: () => 0,
+    sleep: async ms => { delays.push(ms); now += ms; }
+  });
+  await queue.run({ endpoint: 'endpoint', threadId: 'thread-a' }, async () => {});
+  await queue.run({ endpoint: 'endpoint', threadId: 'thread-b' }, async () => {});
+  assert.deepEqual(delays, [400, 1000]);
+});
+
+test('thread bucket is shared across endpoints', async () => {
+  let now = 0;
+  const delays = [];
+  const queue = new OutboundOperationQueue({
+    mutationJitterMinMs: 400,
+    mutationJitterMaxMs: 400,
+    bucketCapacity: 1,
+    refillPerSecond: 1
+  }, {
+    now: () => now,
+    random: () => 0,
+    sleep: async ms => { delays.push(ms); now += ms; }
+  });
+  await queue.run({ endpoint: 'endpoint-a', threadId: 'same-thread' }, async () => {});
+  await queue.run({ endpoint: 'endpoint-b', threadId: 'same-thread' }, async () => {});
+  assert.deepEqual(delays, [400, 1000]);
+});
