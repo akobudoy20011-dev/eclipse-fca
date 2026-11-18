@@ -71,7 +71,7 @@ test('normalizes consistent browser and pacing profiles', () => {
 
 test('rejects unsafe browser header values and invalid pacing bounds', () => {
   assert.throws(() => normalizeConfig({
-    browserProfile: { userAgent: 'bad\\r\\nInjected: yes' }
+    browserProfile: { userAgent: 'bad' + String.fromCharCode(13, 10) + 'Injected: yes' }
   }), { code: 'ERR_CONFIGURATION' });
   assert.throws(() => normalizeConfig({
     pacing: { mutationJitterMinMs: 2000, mutationJitterMaxMs: 1000 }
