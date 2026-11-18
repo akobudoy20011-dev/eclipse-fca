@@ -56,3 +56,21 @@ test('rejects an untrusted login URL before sending appState cookies', async () 
   }), { code: 'ERR_CONFIGURATION' });
   assert.equal(requested, false);
 });
+
+test('rejects appState sessions redirected to checkpoint without persisting them', async () => {
+  let saved = false;
+  await assert.rejects(loginWithAppState({
+    appState: [{ key: 'c_user', value: '12345' }, { key: 'xs', value: 'secret' }],
+    requestClient: {
+      async request() {
+        return {
+          status: 302,
+          data: '',
+          headers: { location: 'https://www.facebook.com/checkpoint/' }
+        };
+      }
+    },
+    sessionStore: { async set() { saved = true; } }
+  }), { code: 'ERR_AUTH_SESSION_REJECTED' });
+  assert.equal(saved, false);
+});
