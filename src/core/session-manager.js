@@ -11,7 +11,9 @@ function responseExpiryReason(response) {
   const location = String(response?.headers?.location || '');
   if (/\/checkpoint(?:\/|\?|$)/i.test(location)) return 'checkpoint';
   if (/\/(?:login|recover)(?:\/|\?|$)/i.test(location) && status >= 300 && status < 400) return 'logout_redirect';
-  const body = typeof response?.data === 'string' ? response.data : JSON.stringify(response?.data ?? '');
+  let body;
+  try { body = typeof response?.data === 'string' ? response.data : JSON.stringify(response?.data ?? ''); }
+  catch { body = ''; }
   if (/\/checkpoint(?:\/|\?|["'\s]|$)/i.test(body)) return 'checkpoint';
   if (/(?:1357001|1357004)/.test(body)) return 'auth_error';
   return null;
@@ -122,15 +124,23 @@ class SessionManager {
 
   async invalidate(reason) {
     if (!this.breaker.trip(reason)) return false;
+    let persistenceFailed = false;
     if (this.session) {
       this.session = { ...this.session, invalidated: true, invalidatedAt: this.breaker.trippedAt };
-      await this.store.set(this.sessionKey, this.session);
+      try { await this.store.set(this.sessionKey, this.session); }
+      catch { persistenceFailed = true; }
     }
     await this.onExpired({
       type: 'session_expired',
       reason: this.breaker.reason,
-      at: this.breaker.trippedAt
+      at: this.breaker.trippedAt,
+      persistenceFailed
     });
+    if (persistenceFailed) {
+      throw new StateError('Session was invalidated, but its invalidation marker could not be persisted.', {
+        code: 'ERR_SESSION_PERSISTENCE'
+      });
+    }
     return true;
   }
 
