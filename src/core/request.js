@@ -4,6 +4,7 @@ const axios = require('axios');
 const { createProxyAgents } = require('./proxy');
 const { TransportError } = require('./errors');
 const { validateFacebookUrl } = require('../utils/url-security');
+const { createBrowserHeaders } = require('../utils/browser-profile');
 
 function createRequestClient(config, options = {}) {
   const agents = config.network.mode === 'proxy'
@@ -18,7 +19,8 @@ function createRequestClient(config, options = {}) {
       'accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
       'accept-language': 'en-US,en;q=0.9',
       'cache-control': 'no-cache',
-      'user-agent': options.userAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+      ...createBrowserHeaders(config.browserProfile),
+      ...(options.headers || {})
     },
     ...agents,
     proxy: false
