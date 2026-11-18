@@ -2,6 +2,13 @@
 
 const { ConfigurationError, TransportError } = require('../core/errors');
 const { validateFacebookUrl } = require('../utils/url-security');
+const { INTERNAL_SESSION } = require('../core/internal');
+
+function getAuthContext(client) {
+  return typeof client[INTERNAL_SESSION] === 'function'
+    ? client[INTERNAL_SESSION]()
+    : client.session;
+}
 
 function parseOperationResponse(raw, name = 'operation', status) {
   const normalized = typeof raw === 'string' ? raw.replace(/^for\s*\(;;\);?\s*/, '') : raw;
@@ -36,7 +43,7 @@ function createOperationExecutor(client, operationMap = {}) {
     validateFacebookUrl(endpoint, 'https:', `API operation "${name}" endpoint`);
     let variables;
     if (typeof operation.buildVariables === 'function') {
-      variables = await operation.buildVariables(input, client.session);
+      variables = await operation.buildVariables(input, getAuthContext(client));
     } else if (operation.variables && typeof operation.variables === 'object') {
       variables = { ...operation.variables, input };
     } else {
@@ -46,7 +53,7 @@ function createOperationExecutor(client, operationMap = {}) {
       throw new ConfigurationError(`API operation "${name}" produced invalid variables.`);
     }
 
-    const session = client.session;
+    const session = getAuthContext(client);
     if (!session?.userId || !session.tokens?.fb_dtsg) {
       throw new ConfigurationError('Login with an authorized appState session before calling Messenger API methods.');
     }
