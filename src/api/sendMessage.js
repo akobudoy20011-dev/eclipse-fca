@@ -27,13 +27,11 @@ function createSendMessage(client, operations, hooks = {}, outboundQueue = null)
         throw new TypeError('Each mention tag must match the message body at its fromIndex.');
       }
     }
+    if (input.typingIndicator === true && typeof hooks.sendTypingIndicator !== 'function') {
+      throw new TypeError('typingIndicator requires an application-provided sendTypingIndicator hook.');
+    }
     const beforeSend = input.typingIndicator === true
-      ? async () => {
-        if (typeof hooks.sendTypingIndicator !== 'function') {
-          throw new TypeError('typingIndicator requires an application-provided sendTypingIndicator hook.');
-        }
-        await hooks.sendTypingIndicator({ threadID: input.threadID, state: 'typ' });
-      }
+      ? () => hooks.sendTypingIndicator({ threadID: input.threadID, state: 'typ' })
       : undefined;
     return execute('sendMessage', {
       threadID: input.threadID,
