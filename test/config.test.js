@@ -48,3 +48,32 @@ test('supports opt-in atomic file session storage configuration', () => {
     code: 'ERR_CONFIGURATION'
   });
 });
+
+test('normalizes consistent browser and pacing profiles', () => {
+  const config = normalizeConfig({
+    browserProfile: {
+      userAgent: 'Custom-UA',
+      secChUa: '"Chromium";v="130"'
+    },
+    pacing: {
+      mutationJitterMinMs: 10,
+      mutationJitterMaxMs: 20,
+      bucketCapacity: 2,
+      refillPerSecond: 0.5
+    }
+  });
+  assert.equal(config.browserProfile.userAgent, 'Custom-UA');
+  assert.equal(config.browserProfile.secChUa, '"Chromium";v="130"');
+  assert.equal(config.pacing.mutationJitterMinMs, 10);
+  assert.equal(config.pacing.refillPerSecond, 0.5);
+  assert.equal(config.pacing.enabled, true);
+});
+
+test('rejects unsafe browser header values and invalid pacing bounds', () => {
+  assert.throws(() => normalizeConfig({
+    browserProfile: { userAgent: 'bad\\r\\nInjected: yes' }
+  }), { code: 'ERR_CONFIGURATION' });
+  assert.throws(() => normalizeConfig({
+    pacing: { mutationJitterMinMs: 2000, mutationJitterMaxMs: 1000 }
+  }), { code: 'ERR_CONFIGURATION' });
+});
