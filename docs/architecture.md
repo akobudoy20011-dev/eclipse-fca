@@ -69,3 +69,18 @@ The test suite replays deterministic synthetic MQTT and GraphQL fixtures from te
 - Outbound mutation operations pass through a shared queue. It serializes operations per endpoint/thread, maintains token buckets for each endpoint and thread, and applies configurable jitter (default 400–1600 ms). Default buckets have capacity 5 and refill at 1 token/second. `getThreadInfo` is treated as a read; custom descriptors may set `mutation: false`.
 - `sendMessage({ typingIndicator: true })` invokes the caller-supplied `apiHooks.sendTypingIndicator({ threadID, state: 'typ' })` immediately before the mutation request. The library does not fabricate a private typing payload.
 - MQTT acknowledgements are opt-in through `mqtt.acknowledgements`. Delayed `markAsDelivered` and `markAsRead` callbacks must be supplied by the application. They receive normalized MQTT message events; no unverified receipt wire format is implemented. Pending acknowledgement timers are cancelled when the listener closes.
+
+
+## External GraphQL operation registry
+
+- The default registry is `src/config/operations.json`; it defines descriptors for the five API methods with null `doc_id` placeholders. The placeholders are deliberately non-executable until replaced with verified IDs.
+- `createClient({ operationRegistryPath })` loads an alternate JSON registry. The file must use schema version 1. `apiOperations` programmatic descriptors override matching registry entries.
+- JSON variable templates support literal values and explicit `$input`, `$inputOptional`, and `$session` references. They are resolved as data and never evaluated as JavaScript.
+- The operation executor still enforces HTTPS Facebook-owned endpoints and refuses a null/unverified doc ID.
+
+## MQTT Thrift and LightSpeed framing boundary
+
+- `src/mqtt/thrift-binary.js` implements a generic, schema-neutral Thrift Binary Protocol struct reader/writer with byte, nesting, and collection limits.
+- `src/mqtt/codec.js` recognizes `/ls_req` and `/ls_resp` topic families, preserves JSON handling, and reads/writes an explicit ECLIPSE-owned `ECLT` frame containing version, kind, length, and a Thrift struct.
+- The `ECLT` frame is a synthetic ECLIPSE envelope, **not** a claim about Facebook's actual LightSpeed framing. Unrecognized binary data is preserved as raw payload text; actual Facebook message schemas and framing require authorized, redacted captures.
+- The decoder does not infer field IDs, operation meanings, or private protocol structures. All fixtures for this layer are synthetic and offline.
