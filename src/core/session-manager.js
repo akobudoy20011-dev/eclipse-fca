@@ -10,7 +10,7 @@ function responseExpiryReason(response) {
   const status = Number(response?.status || 0);
   const location = String(response?.headers?.location || '');
   if (/\/checkpoint(?:\/|\?|$)/i.test(location)) return 'checkpoint';
-  if (/\/(?:login(?:\\.php)?|recover)(?:\/|\?|$)/i.test(location) && status >= 300 && status < 400) return 'logout_redirect';
+  if (/\/(?:login(?:\.php)?|recover)(?:\/|\?|$)/i.test(location) && status >= 300 && status < 400) return 'logout_redirect';
   let body;
   try { body = typeof response?.data === 'string' ? response.data : JSON.stringify(response?.data ?? ''); }
   catch { body = ''; }
