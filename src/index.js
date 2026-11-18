@@ -6,7 +6,9 @@ const { createProxyAgents } = require('./core/proxy');
 const { loginWithAppState } = require('./core/login');
 const { TokenManager, extractPageTokens } = require('./core/token-manager');
 const { loadApi } = require('./core/api-loader');
-const { createMqttListener, decodePayload } = require('./mqtt');
+const { createMqttListener, decodePayload, decodeMqttPayload, encodeThriftFrame, decodeThriftFrame, encodeLightspeedPayload, classifyLightspeedTopic } = require('./mqtt');
+const { loadOperationsRegistry, mergeOperationRegistries } = require('./config/operations');
+const { TYPES: THRIFT_TYPES, encodeThriftStruct, decodeThriftStruct } = require('./mqtt/thrift-binary');
 const { normalizeConfig, DEFAULT_CONFIG } = require('./core/config');
 const { EclipseFcaError, ConfigurationError, TransportError, StateError } = require('./core/errors');
 const { MemorySessionStore } = require('./storage/memory-store');
@@ -26,6 +28,16 @@ module.exports = {
   loadApi,
   createMqttListener,
   decodePayload,
+  decodeMqttPayload,
+  encodeThriftFrame,
+  decodeThriftFrame,
+  encodeLightspeedPayload,
+  classifyLightspeedTopic,
+  THRIFT_TYPES,
+  encodeThriftStruct,
+  decodeThriftStruct,
+  loadOperationsRegistry,
+  mergeOperationRegistries,
   cookies,
   createNetworkEngine,
   normalizeConfig,
