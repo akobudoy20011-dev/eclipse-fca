@@ -44,3 +44,25 @@ test('wraps transport failures and moves client into error state', async () => {
   await assert.rejects(client.connect(), error => error.code === 'ERR_TRANSPORT');
   assert.equal(client.state, 'error');
 });
+
+
+test('injects API methods only after a successful appState login', async () => {
+  const client = createClient({
+    requestClient: {
+      async request() {
+        return {
+          data: '<input name="fb_dtsg" value="fresh-token">"USER_ID":"12345"',
+          headers: {}
+        };
+      }
+    }
+  });
+  assert.equal(client.api, null);
+  await client.login([{ key: 'c_user', value: '12345' }, { key: 'xs', value: 'secret' }]);
+  assert.equal(typeof client.api.sendMessage, 'function');
+  assert.equal(typeof client.api.createPoll, 'function');
+  assert.equal(typeof client.api.commentPost, 'function');
+  assert.equal(typeof client.api.joinCall, 'function');
+  assert.equal(typeof client.api.getThreadInfo, 'function');
+  assert.deepEqual(Object.keys(client.session).sort(), ['authenticatedAt', 'tokens', 'userId']);
+});
