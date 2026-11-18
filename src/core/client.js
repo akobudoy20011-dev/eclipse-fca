@@ -35,8 +35,7 @@ function createClient(options = {}) {
       return session ? {
         userId: session.userId,
         tokens: { ...session.tokens },
-        authenticatedAt: session.authenticatedAt,
-        cookies: session.cookies.map(cookie => ({ ...cookie }))
+        authenticatedAt: session.authenticatedAt
       } : null;
     },
     get api() { return api; },
