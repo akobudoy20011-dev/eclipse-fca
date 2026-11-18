@@ -59,5 +59,5 @@ The test suite replays deterministic synthetic MQTT and GraphQL fixtures from te
 - Critical cookie rotations (`xs`, `c_user`, `fr`, `sb`, `datr`) are merged into the normalized cookie state and persisted before the HTTP request returns.
 - A jittered scheduler refreshes page-derived `fb_dtsg`, `lsd`, and `jazoest` by fetching the configured Facebook session page. The default is 45 minutes ±5 minutes. This is a best-effort page-token refresh, not a guarantee of session longevity or a claim about server token expiry.
 - A refresh mutex serializes refresh work; client HTTP/API calls wait for an active refresh to settle.
-- Checkpoint/logout redirects, known authentication error codes, and removal of required `c_user`/`xs` cookies trip a terminal circuit breaker. The session is persisted as invalidated, the realtime transports and scheduler are stopped, and `session_expired` is emitted.
+- Checkpoint/logout redirects, known authentication error codes, and removal of required `c_user`/`xs` cookies trip a terminal circuit breaker. The session is persisted as invalidated, in-flight HTTP requests are aborted, the realtime transports and scheduler are stopped, and `session_expired` is emitted.
 - A fresh explicit login creates a new session manager/breaker. No automatic checkpoint retry or authentication bypass is attempted.
