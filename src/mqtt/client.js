@@ -7,6 +7,17 @@ const { serializeCookies } = require('../utils/cookies');
 const { validateFacebookUrl } = require('../utils/url-security');
 const { decodePayload } = require('./decoder');
 
+function expiryReasonFromPayload(decoded, topic) {
+  const text = typeof decoded === 'string' ? decoded : JSON.stringify(decoded ?? '');
+  if (/\/checkpoint(?:\/|\?|["'\s]|$)/i.test(text)) return 'checkpoint';
+  if (/(?:1357001|1357004)/.test(text)) return 'auth_error';
+  if (decoded && typeof decoded === 'object' &&
+      ['session_expired', 'auth_error', 'logged_out', 'checkpoint'].includes(decoded.type)) {
+    return decoded.type === 'checkpoint' ? 'checkpoint' : 'auth_error';
+  }
+  return null;
+}
+
 function createMqttListener(options = {}) {
   const { endpoint, session, network = { mode: 'direct' }, topics = [], mqttOptions = {} } = options;
   validateFacebookUrl(endpoint, 'wss:', 'MQTT endpoint');
@@ -17,9 +28,10 @@ function createMqttListener(options = {}) {
     throw new ConfigurationError('MQTT topics must be an array of non-empty strings.');
   }
 
+  const onSessionExpired = typeof options.onSessionExpired === 'function' ? options.onSessionExpired : () => {};
   let mqtt;
-  try { mqtt = require('mqtt'); } catch (cause) {
-    throw new ConfigurationError('Install the mqtt dependency to enable the realtime listener.', { cause });
+  try { mqtt = require('mqtt'); } catch {
+    throw new ConfigurationError('Install the mqtt dependency to enable the realtime listener.');
   }
 
   const emitter = new EventEmitter();
@@ -36,8 +48,19 @@ function createMqttListener(options = {}) {
     ...mqttOptions,
     wsOptions
   });
+  let expiryHandled = false;
+  const trip = reason => {
+    if (expiryHandled) return;
+    expiryHandled = true;
+    Promise.resolve(onSessionExpired(reason)).catch(() => {});
+  };
 
-  connection.on('connect', () => {
+  connection.on('connect', packet => {
+    if (packet?.returnCode === 4 || packet?.returnCode === 5) {
+      trip('mqtt_auth_rejected');
+      connection.end(true);
+      return;
+    }
     emitter.emit('connect');
     if (topics.length) connection.subscribe(topics, error => {
       if (error) emitter.emit('error', new TransportError('MQTT topic subscription failed.', {
@@ -49,6 +72,12 @@ function createMqttListener(options = {}) {
   });
   connection.on('message', (topic, payload, packet) => {
     const decoded = decodePayload(payload);
+    const expiry = expiryReasonFromPayload(decoded, topic);
+    if (expiry) {
+      trip(expiry);
+      connection.end(true);
+      return;
+    }
     emitter.emit('message', { topic, payload: decoded, qos: packet?.qos ?? 0, retained: Boolean(packet?.retain) });
     if (decoded && typeof decoded === 'object' && typeof decoded.type === 'string') {
       emitter.emit(decoded.type, decoded);
@@ -57,20 +86,23 @@ function createMqttListener(options = {}) {
   connection.on('reconnect', () => emitter.emit('reconnect'));
   connection.on('close', () => emitter.emit('close'));
   connection.on('offline', () => emitter.emit('offline'));
-  connection.on('error', error => emitter.emit('error', new TransportError('MQTT connection error.', {
-    code: 'ERR_MQTT_CONNECTION',
-    details: { transportCode: typeof error.code === 'string' ? error.code : undefined }
-  })));
+  connection.on('error', error => {
+    if (error?.code === '1357001' || error?.code === '1357004') trip('mqtt_auth_rejected');
+    emitter.emit('error', new TransportError('MQTT connection error.', {
+      code: 'ERR_MQTT_CONNECTION',
+      details: { transportCode: typeof error.code === 'string' ? error.code : undefined }
+    }));
+  });
 
   return Object.freeze({
     on: emitter.on.bind(emitter),
     once: emitter.once.bind(emitter),
     off: emitter.off.bind(emitter),
     subscribe(topicOrTopics) {
-      return new Promise((resolve, reject) => connection.subscribe(topicOrTopics, (error, granted) => error ? reject(error) : resolve(granted)));
+      return new Promise((resolve, reject) => connection.subscribe(topicOrTopics, (error, granted) => error ? reject(new TransportError('MQTT subscription failed.', { code: 'ERR_MQTT_SUBSCRIBE' })) : resolve(granted)));
     },
     publish(topic, payload, publishOptions) {
-      return new Promise((resolve, reject) => connection.publish(topic, typeof payload === 'string' ? payload : JSON.stringify(payload), publishOptions || {}, error => error ? reject(error) : resolve()));
+      return new Promise((resolve, reject) => connection.publish(topic, typeof payload === 'string' ? payload : JSON.stringify(payload), publishOptions || {}, error => error ? reject(new TransportError('MQTT publish failed.', { code: 'ERR_MQTT_PUBLISH' })) : resolve()));
     },
     close() {
       return new Promise(resolve => connection.end(false, {}, resolve));
@@ -79,4 +111,4 @@ function createMqttListener(options = {}) {
   });
 }
 
-module.exports = { createMqttListener };
+module.exports = { createMqttListener, expiryReasonFromPayload };
