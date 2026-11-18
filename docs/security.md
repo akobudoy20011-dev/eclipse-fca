@@ -31,6 +31,6 @@ These controls must be enabled in GitHub repository settings; a workflow file ca
 
 ## Automated checks
 
-Pull requests and main-branch changes run tests, syntax checks, npm audit, package-content inspection, secret scanning, and CodeQL analysis. Dependency Review checks dependency changes on pull requests. Scheduled security workflows provide a recurring audit.
+Pull requests and main-branch changes run tests, syntax checks, npm audit, package-content inspection, secret scanning, and CodeQL analysis. The Dependency Review action is not enabled because GitHub reports that the repository's current dependency-graph/security configuration does not support it. Scheduled security workflows provide a recurring audit.
 
 These checks reduce risk but cannot guarantee that a repository or account will never be compromised or suspended. Maintainers must also review alerts, rotate exposed credentials, keep GitHub account recovery methods secure, and respond to platform notices.
