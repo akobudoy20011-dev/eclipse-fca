@@ -18,6 +18,11 @@ function resolveTemplate(value, input, session) {
     }
     return input[key];
   }
+  if (keys.length === 1 && keys[0] === '$inputOptional') {
+    const key = value.$inputOptional;
+    if (typeof key !== 'string' || !key) throw new ConfigurationError('Invalid optional input reference in operation registry.');
+    return Object.prototype.hasOwnProperty.call(input, key) ? input[key] : null;
+  }
   if (keys.length === 1 && keys[0] === '$session') {
     const key = value.$session;
     if (typeof key !== 'string' || !key || !Object.prototype.hasOwnProperty.call(session || {}, key)) {
