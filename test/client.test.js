@@ -50,7 +50,7 @@ test('injects API methods only after login and does not expose the raw session s
     requestClient: {
       async request() {
         return {
-          data: '<input name="fb_dtsg" value="fresh-token">"USER_ID":"12345"',
+          data: '<input name="fb_dtsg" value="fresh-token"><script>"USER_ID":"12345"</script>',
           headers: {}
         };
       }
