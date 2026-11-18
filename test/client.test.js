@@ -101,3 +101,26 @@ test('redacts proxy credentials from the public client configuration', () => {
   assert.ok(decodeURIComponent(client.config.network.proxy).includes('[redacted]'));
   assert.equal(client.config.network.proxy.includes('proxy-secret'), false);
 });
+
+test('client request profile overrides conflicting browser identity headers', async () => {
+  let captured;
+  const client = createClient({
+    browserProfile: {
+      userAgent: 'Configured-UA',
+      secChUa: '"Chromium";v="131"'
+    },
+    requestClient: {
+      async request(input) {
+        captured = input;
+        return { status: 200, data: 'ok', headers: {} };
+      }
+    }
+  });
+  await client.request({
+    url: 'https://www.facebook.com/',
+    headers: { 'user-agent': 'Caller-UA', 'sec-ch-ua': 'Caller-CH-UA' }
+  });
+  assert.equal(captured.headers['user-agent'], 'Configured-UA');
+  assert.equal(captured.headers['sec-ch-ua'], '"Chromium";v="131"');
+  assert.equal(captured.headers['sec-fetch-mode'], 'cors');
+});
