@@ -2,8 +2,8 @@
 
 const { createOperationExecutor } = require('./_operation');
 
-function createJoinCall(client, operations, hooks = {}) {
-  const execute = createOperationExecutor(client, operations);
+function createJoinCall(client, operations, hooks = {}, outboundQueue = null) {
+  const execute = createOperationExecutor(client, operations, outboundQueue);
   return async function joinCall(input = {}) {
     if (!input.threadID || typeof input.threadID !== 'string') throw new TypeError('threadID is required.');
     if (typeof hooks.onSignal !== 'function') {
