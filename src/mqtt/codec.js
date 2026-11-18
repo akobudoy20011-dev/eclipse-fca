@@ -50,11 +50,12 @@ function decodeThriftFrame(payload, options = {}) {
 function decodeMqttPayload(payload, options = {}) {
   const topicKind = classifyLightspeedTopic(options.topic);
   if (Buffer.isBuffer(payload) && payload.length >= MAGIC.length && payload.subarray(0, 4).equals(MAGIC)) {
-    return decodeThriftFrame(payload, options.thriftLimits);
+    const framed = decodeThriftFrame(payload, options.thriftLimits);
+    return Object.freeze({ ...framed, ...(topicKind ? { topicFamily: topicKind } : {}) });
   }
   const decoded = decodePayload(payload);
   if (decoded && typeof decoded === 'object' && decoded.type !== 'raw') {
-    return decoded;
+    return topicKind ? Object.freeze({ ...decoded, topicFamily: topicKind }) : decoded;
   }
   return Object.freeze({
     ...decoded,
