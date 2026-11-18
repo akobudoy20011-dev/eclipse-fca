@@ -15,6 +15,7 @@ const { TokenRefreshScheduler } = require('./token-refresh');
 const { TokenManager } = require('./token-manager');
 const { StateError, TransportError } = require('./errors');
 const { INTERNAL_SESSION } = require('./internal');
+const { createBrowserHeaders } = require('../utils/browser-profile');
 const { OutboundOperationQueue } = require('./outbound-queue');
 
 function combineAbortSignals(first, second) {
@@ -143,7 +144,7 @@ function createClient(options = {}) {
     [INTERNAL_SESSION]() { return sessionManager?.snapshot() || null; },
     request: async function request(input) {
       if (sessionManager) await sessionManager.waitForRefresh();
-      const headers = { ...(input?.headers || {}) };
+      const headers = { ...(input?.headers || {}), ...createBrowserHeaders(config.browserProfile) };
       const hasCookie = Object.keys(headers).some(key => key.toLowerCase() === 'cookie');
       if (sessionManager && !hasCookie && isFacebookHttpsUrl(input?.url)) {
         headers.cookie = sessionManager.getCookieHeader();
