@@ -168,6 +168,7 @@ const client = createClient({
   }
 });
 
+await client.login(appState);
 await client.api.sendMessage({
   threadID: 'thread-id',
   body: 'Hello',
