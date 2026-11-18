@@ -6,6 +6,8 @@ const { MemorySessionStore } = require('../storage/memory-store');
 const { createRequestClient } = require('./request');
 const { loginWithAppState } = require('./login');
 const { serializeCookies } = require('../utils/cookies');
+const { loadApi } = require('./api-loader');
+const { createMqttListener } = require('../mqtt/client');
 const { StateError, TransportError } = require('./errors');
 
 function createClient(options = {}) {
@@ -17,6 +19,8 @@ function createClient(options = {}) {
   let state = 'idle';
   let connectPromise = null;
   let session = null;
+  let api = null;
+  let mqttListener = null;
 
   function setState(next) {
     state = next;
@@ -27,7 +31,15 @@ function createClient(options = {}) {
     get state() { return state; },
     get config() { return config; },
     get sessionStore() { return sessionStore; },
-    get session() { return session ? { userId: session.userId, tokens: { ...session.tokens }, authenticatedAt: session.authenticatedAt } : null; },
+    get session() {
+      return session ? {
+        userId: session.userId,
+        tokens: { ...session.tokens },
+        authenticatedAt: session.authenticatedAt,
+        cookies: session.cookies.map(cookie => ({ ...cookie }))
+      } : null;
+    },
+    get api() { return api; },
     request(input) {
       const headers = { ...(input?.headers || {}) };
       if (session && !Object.keys(headers).some(key => key.toLowerCase() === 'cookie')) {
@@ -52,19 +64,38 @@ function createClient(options = {}) {
         sessionKey: loginOptions.sessionKey || 'default',
         homeUrl: loginOptions.homeUrl
       });
+      api = loadApi(client, {
+        operations: options.apiOperations || {},
+        hooks: options.apiHooks || {}
+      });
       emitter.emit('login', { userId: session.userId });
-      return { userId: session.userId, tokens: { ...session.tokens } };
+      emitter.emit('api-ready', Object.keys(api));
+      return { userId: session.userId, tokens: { ...session.tokens }, api };
+    },
+
+    listen(mqttOptions = {}) {
+      if (!session) throw new StateError('Login before starting the MQTT listener.');
+      if (mqttListener) return mqttListener;
+      const settings = { ...(options.mqtt || {}), ...mqttOptions };
+      mqttListener = createMqttListener({
+        ...settings,
+        session,
+        network: config.network
+      });
+      for (const eventName of ['connect', 'subscribed', 'message', 'reconnect', 'close', 'offline', 'error']) {
+        mqttListener.on(eventName, value => emitter.emit(`mqtt:${eventName}`, value));
+      }
+      emitter.emit('mqtt:listener-created');
+      return mqttListener;
     },
 
     async connect() {
       if (state === 'connected') return client;
       if (connectPromise) return connectPromise;
-      if (state === 'closing') {
-        throw new StateError('Cannot connect while the client is closing.');
-      }
+      if (state === 'closing') throw new StateError('Cannot connect while the client is closing.');
       if (!transport || typeof transport.connect !== 'function') {
         throw new TransportError(
-          'No realtime transport adapter is configured. Messenger realtime connectivity is not included in this release.',
+          'No realtime transport adapter is configured. Use client.listen() with a verified MQTT endpoint or inject a transport adapter.',
           { code: 'ERR_TRANSPORT_NOT_CONFIGURED' }
         );
       }
@@ -72,7 +103,13 @@ function createClient(options = {}) {
       connectPromise = (async () => {
         setState('connecting');
         try {
-          await transport.connect({ config, sessionStore, session, request: client.request.bind(client), requestClient, emit: emitter.emit.bind(emitter) });
+          await transport.connect({
+            config, sessionStore, session,
+            request: client.request.bind(client),
+            requestClient,
+            api,
+            emit: emitter.emit.bind(emitter)
+          });
           setState('connected');
           emitter.emit('connected');
           return client;
@@ -93,6 +130,10 @@ function createClient(options = {}) {
       if (state === 'closing') return;
       setState('closing');
       try {
+        if (mqttListener) {
+          await mqttListener.close();
+          mqttListener = null;
+        }
         if (transport && typeof transport.disconnect === 'function') await transport.disconnect();
       } finally {
         setState('disconnected');
