@@ -3,6 +3,7 @@
 const { EventEmitter } = require('node:events');
 const { normalizeConfig } = require('./config');
 const { MemorySessionStore } = require('../storage/memory-store');
+const { FileSessionStore } = require('../storage/file-store');
 const { createRequestClient } = require('./request');
 const { loginWithAppState } = require('./login');
 const { serializeCookies, mergeSetCookie } = require('../utils/cookies');
@@ -33,7 +34,11 @@ function createClient(options = {}) {
     network: Object.freeze({ ...config.network, proxy: redactProxyUrl(config.network.proxy) })
   });
   const transport = options.transport ?? null;
-  const sessionStore = options.sessionStore ?? new MemorySessionStore();
+  const sessionStore = options.sessionStore ?? (
+    config.session.storage === 'file'
+      ? new FileSessionStore({ directory: config.session.directory })
+      : new MemorySessionStore()
+  );
   const requestClient = options.requestClient ?? createRequestClient(config, options.http || {});
   const emitter = new EventEmitter();
   let state = 'idle';
