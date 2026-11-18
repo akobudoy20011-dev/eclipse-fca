@@ -80,7 +80,7 @@ joinCall invokes a configured operation and forwards any returned signaling data
 
 ## Authentication and safety limits
 
-This release accepts an existing authorized appState session. It does not collect passwords, evade checkpoints, bypass two-factor challenges, rotate identities to evade detection, or retry through security challenges. Token extraction is best-effort; automatic token-expiry refresh is not yet verified. Never log or commit appState cookies, tokens, proxy credentials, or raw session objects.
+This release accepts an existing authorized appState session. It does not collect passwords, evade checkpoints, bypass two-factor challenges, rotate identities to evade detection, or retry through security challenges. Token extraction and scheduled page-token refresh are best-effort; they do not guarantee session longevity or bypass server-side security checks. Never log or commit appState cookies, tokens, proxy credentials, or raw session objects.
 
 Use only accounts and sessions you are authorized to access, and respect platform terms and rate limits.
 
@@ -109,3 +109,70 @@ After login, a refresh scheduler fetches the configured Facebook session page (d
 A detected checkpoint redirect, logout redirect, missing required session cookie, or known authentication error trips a terminal session circuit breaker. The client stops its refresh timer, aborts in-flight HTTP requests, closes MQTT and the injected transport, persists `invalidated: true`, emits `session_expired`, and rejects subsequent requests until the application explicitly logs in again with a valid authorized appState.
 
 The refresh mechanism can reduce stale-token reuse, but it cannot guarantee that Facebook will preserve a session. Server-side security decisions, checkpoints, revocation, password changes, and account restrictions remain outside the library's control.
+
+
+## Browser profile and outbound pacing
+
+The client uses one stable browser header profile for HTTP and MQTT WebSocket handshakes. Configure the User-Agent and matching Client Hints / Fetch Metadata together; the configured profile takes precedence over conflicting per-request header overrides.
+
+```js
+const client = createClient({
+  browserProfile: {
+    userAgent: process.env.ECLIPSE_BROWSER_UA,
+    secChUa: process.env.ECLIPSE_SEC_CH_UA,
+    secChUaMobile: '?0',
+    secChUaPlatform: '"Linux"',
+    secFetchSite: 'same-origin',
+    secFetchMode: 'cors',
+    secFetchDest: 'empty'
+  },
+  pacing: {
+    enabled: true,
+    mutationJitterMinMs: 400,
+    mutationJitterMaxMs: 1600,
+    bucketCapacity: 5,
+    refillPerSecond: 1
+  }
+});
+```
+
+The default outbound mutation queue serializes operations per endpoint/thread, applies token buckets per endpoint and per thread (capacity 5, refill 1 token/second), and adds 400–1600 ms of jitter between mutations. Tune these values only within the platform's allowed usage. Set `pacing.enabled: false` only when your application provides its own compliant rate limiting. Thread-info reads are not treated as mutations; a custom operation can set `mutation: false` to opt out.
+
+## Optional typing and receipt hooks
+
+The library does not invent private typing or receipt payload formats. Supply application hooks that use protocol behavior you have independently verified:
+
+```js
+const client = createClient({
+  apiHooks: {
+    sendTypingIndicator: async ({ threadID, state }) => {
+      // Send a verified typing event using your application's transport.
+    },
+    markAsDelivered: async event => {
+      // Acknowledge this event using your verified receipt implementation.
+    },
+    markAsRead: async event => {
+      // Acknowledge this event using your verified receipt implementation.
+    }
+  },
+  mqtt: {
+    endpoint: process.env.FB_MQTT_WEBSOCKET_URL,
+    topics: (process.env.FB_MQTT_TOPICS || '').split(',').filter(Boolean),
+    acknowledgements: {
+      enabled: true,
+      markAsDelivered: true,
+      markAsRead: false,
+      minDelayMs: 500,
+      maxDelayMs: 1500
+    }
+  }
+});
+
+await client.api.sendMessage({
+  threadID: 'thread-id',
+  body: 'Hello',
+  typingIndicator: true
+});
+```
+
+Typing runs immediately before the queued send. Incoming MQTT message events can schedule the configured delivery/read hooks after a randomized delay. Acknowledgements are disabled by default, require explicit hooks, and pending timers are cancelled when the listener closes. Hook callbacks receive the normalized event `{ topic, payload, qos, retained }`; they are responsible for implementing only verified receipt behavior.
