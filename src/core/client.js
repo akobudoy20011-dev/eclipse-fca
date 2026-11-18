@@ -15,6 +15,7 @@ const { TokenRefreshScheduler } = require('./token-refresh');
 const { TokenManager } = require('./token-manager');
 const { StateError, TransportError } = require('./errors');
 const { INTERNAL_SESSION } = require('./internal');
+const { OutboundOperationQueue } = require('./outbound-queue');
 
 function combineAbortSignals(first, second) {
   if (!first) return second;
@@ -62,6 +63,7 @@ function createClient(options = {}) {
   let refreshScheduler = null;
   let api = null;
   let mqttListener = null;
+  let outboundQueue = new OutboundOperationQueue(config.pacing, options.pacingRuntime);
 
   function setState(next) {
     state = next;
@@ -70,6 +72,7 @@ function createClient(options = {}) {
 
   async function stopRealtimeForExpiry() {
     if (refreshScheduler) refreshScheduler.stop();
+    if (outboundQueue) outboundQueue.close();
     if (mqttListener) {
       const listener = mqttListener;
       mqttListener = null;
@@ -173,9 +176,11 @@ function createClient(options = {}) {
       });
       sessionManager = createManager(sessionKey);
       await sessionManager.setSession(initialSession);
+      outboundQueue = new OutboundOperationQueue(config.pacing, options.pacingRuntime);
       api = loadApi(client, {
         operations: options.apiOperations || {},
-        hooks: options.apiHooks || {}
+        hooks: options.apiHooks || {},
+        outboundQueue
       });
       const refreshOptions = options.session?.refresh || {};
       refreshScheduler = new TokenRefreshScheduler({
@@ -200,9 +205,12 @@ function createClient(options = {}) {
         ...settings,
         session: { userId: sessionManager.snapshot().userId, cookies: sessionManager.getCookiesForRefresh() },
         network: config.network,
+        browserProfile: config.browserProfile,
+        hooks: options.apiHooks || {},
+        acknowledgements: settings.acknowledgements || {},
         onSessionExpired: reason => sessionManager.invalidate(reason)
       });
-      for (const eventName of ['connect', 'subscribed', 'message', 'reconnect', 'close', 'offline', 'error']) {
+      for (const eventName of ['connect', 'subscribed', 'message', 'reconnect', 'close', 'offline', 'error', 'acknowledgement_error']) {
         mqttListener.on(eventName, value => emitter.emit(`mqtt:${eventName}`, value));
       }
       emitter.emit('mqtt:listener-created');
