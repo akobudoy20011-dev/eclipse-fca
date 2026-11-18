@@ -23,6 +23,13 @@ async function loginWithAppState(options = {}) {
     headers: { cookie: serializeCookies(cookies) },
     responseType: 'text'
   });
+  const location = String(response.headers?.location || '');
+  if (/\/checkpoint(?:\/|\?|$)/i.test(location) ||
+      (/\/(?:login|recover)(?:\/|\?|$)/i.test(location) && response.status >= 300 && response.status < 400)) {
+    throw new TransportError('The supplied session was redirected to an authentication or checkpoint page.', {
+      code: 'ERR_AUTH_SESSION_REJECTED'
+    });
+  }
 
   const html = typeof response.data === 'string' ? response.data : '';
   const tokenManager = new TokenManager();
@@ -41,6 +48,12 @@ async function loginWithAppState(options = {}) {
   }
 
   cookies = mergeSetCookie(cookies, response.headers?.['set-cookie']);
+  if (!cookies.some(cookie => cookie.key === 'c_user' && cookie.value) ||
+      !cookies.some(cookie => cookie.key === 'xs' && cookie.value)) {
+    throw new TransportError('The login response did not retain the required session cookies.', {
+      code: 'ERR_AUTH_SESSION_REJECTED'
+    });
+  }
   const session = Object.freeze({
     cookies,
     userId: finalTokens.userId,
