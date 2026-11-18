@@ -24,7 +24,7 @@ npm run check
 - Central HTTP client and explicit HTTP/HTTPS/SOCKS proxy agents.
 - Configurable MQTT.js WebSocket listener with subscriptions, publish, JSON decoding, raw-payload preservation, and event forwarding.
 - MQTT WebSocket proxy uses the configured HTTPS proxy agent; proxy errors do not silently switch to direct mode.
-- Session cookies are not exposed by the public session getter or raw session-store getter.
+- Session cookies and authentication tokens are not exposed by the public session getter; internal API code uses a private symbol-based session accessor.
 - Automatic cookie forwarding is restricted to HTTPS Facebook hosts; configured GraphQL endpoints must also use HTTPS Facebook hosts.
 - MQTT session cookies are restricted to WSS Facebook hosts.
 - API methods are injected into client.api after successful appState login:
