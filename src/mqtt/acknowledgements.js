@@ -42,7 +42,7 @@ function createAcknowledgementDispatcher(options = {}) {
         await hook(event);
       } catch {
         if (typeof options.onError === 'function') {
-          options.onError({ code: 'ERR_MQTT_ACKNOWLEDGEMENT', kind });
+          try { options.onError({ code: 'ERR_MQTT_ACKNOWLEDGEMENT', kind }); } catch {}
         }
       }
     }, delay);
