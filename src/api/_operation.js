@@ -4,7 +4,7 @@ const { ConfigurationError, TransportError } = require('../core/errors');
 const { validateFacebookUrl } = require('../utils/url-security');
 
 function parseOperationResponse(raw, name = 'operation', status) {
-  const normalized = typeof raw === 'string' ? raw.replace(/^for\\s*\\(;;\\);?\\s*/, '') : raw;
+  const normalized = typeof raw === 'string' ? raw.replace(/^for\s*\(;;\);?\s*/, '') : raw;
   let data = normalized;
   if (typeof normalized === 'string') {
     try { data = JSON.parse(normalized); } catch {
