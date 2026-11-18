@@ -30,8 +30,8 @@ function parseOperationResponse(raw, name = 'operation', status) {
   return data;
 }
 
-function createOperationExecutor(client, operationMap = {}) {
-  return async function execute(name, input) {
+function createOperationExecutor(client, operationMap = {}, outboundQueue = null) {
+  return async function execute(name, input, executionOptions = {}) {
     const operation = operationMap[name];
     if (!operation || typeof operation !== 'object') {
       throw new ConfigurationError(`No verified API operation descriptor configured for "${name}".`);
@@ -68,18 +68,25 @@ function createOperationExecutor(client, operationMap = {}) {
     if (session.tokens.lsd) form.set('lsd', session.tokens.lsd);
     if (session.tokens.jazoest) form.set('jazoest', session.tokens.jazoest);
 
-    const response = await client.request({
-      method: 'POST',
-      url: endpoint,
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        'x-fb-friendly-name': operation.friendlyName || name
-      },
-      data: form.toString(),
-      responseType: 'text'
-    });
-
-    return parseOperationResponse(response.data, name, response.status);
+    const send = async () => {
+      if (typeof executionOptions.beforeSend === 'function') await executionOptions.beforeSend();
+      const response = await client.request({
+        method: 'POST',
+        url: endpoint,
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'x-fb-friendly-name': operation.friendlyName || name
+        },
+        data: form.toString(),
+        responseType: 'text'
+      });
+      return parseOperationResponse(response.data, name, response.status);
+    };
+    const isMutation = operation.mutation !== false && name !== 'getThreadInfo';
+    if (outboundQueue && isMutation) {
+      return outboundQueue.run({ endpoint, threadId: input.threadID || input.threadId }, send);
+    }
+    return send();
   };
 }
 
