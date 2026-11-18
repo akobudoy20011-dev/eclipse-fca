@@ -34,7 +34,7 @@ The MQTT listener uses MQTT.js and applies the configured HTTPS proxy agent in p
 
 AppState login validates that the login URL uses HTTPS on a Facebook-owned hostname before sending cookies. Automatic client cookie forwarding is limited to HTTPS Facebook hosts. Configured GraphQL endpoints are subject to the same restriction, and MQTT session cookies are sent only to WSS Facebook hosts.
 
-The public session getter returns account ID, token metadata, and authentication time, but not cookies. The raw session store is not exposed as a public client property. Injected transports receive the internal session/store context and must be treated as trusted application code.
+The public session getter returns account ID and authentication time only. Cookies and authentication tokens are not exposed by the public getter; internal API code uses a private symbol-based accessor. The raw session store is not exposed as a public client property. Injected transports receive the internal session/store context and must be treated as trusted application code.
 
 ## Client transport contract
 
