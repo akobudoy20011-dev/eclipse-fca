@@ -9,6 +9,7 @@ const session = {
   userId: '12345',
   cookies: [{ key: 'c_user', value: '12345' }, { key: 'xs', value: 'session' }]
 };
+const endpoint = 'wss://edge-chat.facebook.com/mqtt';
 
 test('decodes JSON MQTT payloads', () => {
   assert.deepEqual(decodePayload(Buffer.from('{"type":"message","text":"hello"}')), {
@@ -24,12 +25,18 @@ test('preserves unrecognized MQTT payloads as raw text', () => {
   });
 });
 
-test('requires an explicit secure WebSocket endpoint', () => {
+test('requires an explicit secure Facebook WebSocket endpoint', () => {
   assert.throws(() => createMqttListener({ session }), {
     code: 'ERR_CONFIGURATION'
   });
   assert.throws(() => createMqttListener({
-    endpoint: 'ws://example.test/mqtt',
+    endpoint: 'ws://edge-chat.facebook.com/mqtt',
+    session
+  }), {
+    code: 'ERR_CONFIGURATION'
+  });
+  assert.throws(() => createMqttListener({
+    endpoint: 'wss://facebook.com.attacker.example/mqtt',
     session
   }), {
     code: 'ERR_CONFIGURATION'
@@ -38,13 +45,13 @@ test('requires an explicit secure WebSocket endpoint', () => {
 
 test('requires an authenticated session and valid topic list', () => {
   assert.throws(() => createMqttListener({
-    endpoint: 'wss://example.test/mqtt',
+    endpoint,
     session: null
   }), {
     code: 'ERR_CONFIGURATION'
   });
   assert.throws(() => createMqttListener({
-    endpoint: 'wss://example.test/mqtt',
+    endpoint,
     session,
     topics: 'not-an-array'
   }), {
