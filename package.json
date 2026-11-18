@@ -1,7 +1,7 @@
 {
   "name": "eclipse-fca",
-  "version": "0.1.0",
-  "description": "Independent modular Messenger client library with a ws3-fca compatibility layer",
+  "version": "0.2.0",
+  "description": "Independent modular unofficial Messenger client foundation",
   "main": "index.js",
   "type": "commonjs",
   "engines": {
@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node scripts/check.js"
+    "check": "node scripts/check.js",
+    "test:coverage": "c8 npm test"
   },
   "keywords": [
     "eclipse",
@@ -17,5 +18,14 @@
     "client",
     "fca"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
+    "socks-proxy-agent": "^8.0.5"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3"
+  }
 }
