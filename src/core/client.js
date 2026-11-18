@@ -14,6 +14,7 @@ const { SessionManager, responseExpiryReason } = require('./session-manager');
 const { TokenRefreshScheduler } = require('./token-refresh');
 const { TokenManager } = require('./token-manager');
 const { StateError, TransportError } = require('./errors');
+const { INTERNAL_SESSION } = require('./internal');
 
 function redactProxyUrl(value) {
   if (!value) return null;
@@ -118,11 +119,11 @@ function createClient(options = {}) {
       const current = sessionManager?.snapshot();
       return current ? {
         userId: current.userId,
-        tokens: { ...current.tokens },
         authenticatedAt: current.authenticatedAt,
       } : null;
     },
     get api() { return api; },
+    [INTERNAL_SESSION]() { return sessionManager?.snapshot() || null; },
     request: async function request(input) {
       if (sessionManager) await sessionManager.waitForRefresh();
       const headers = { ...(input?.headers || {}) };
