@@ -32,7 +32,7 @@ class TokenRefreshScheduler {
       try {
         await this.sessionManager.refreshTokens();
       } catch {
-        this.onError({ code: 'ERR_TOKEN_REFRESH', message: 'Session token refresh failed.' });
+        try { this.onError({ code: 'ERR_TOKEN_REFRESH', message: 'Session token refresh failed.' }); } catch {}
       } finally {
         this.#schedule();
       }
