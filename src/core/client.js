@@ -17,6 +17,7 @@ const { StateError, TransportError } = require('./errors');
 const { INTERNAL_SESSION } = require('./internal');
 const { createBrowserHeaders } = require('../utils/browser-profile');
 const { OutboundOperationQueue } = require('./outbound-queue');
+const { loadOperationsRegistry, mergeOperationRegistries } = require('../config/operations');
 
 function combineAbortSignals(first, second) {
   if (!first) return second;
@@ -46,6 +47,10 @@ function redactProxyUrl(value) {
 
 function createClient(options = {}) {
   const config = normalizeConfig(options);
+  const operationRegistry = mergeOperationRegistries(
+    loadOperationsRegistry({ path: options.operationRegistryPath }),
+    options.apiOperations || {}
+  );
   const publicConfig = Object.freeze({
     ...config,
     network: Object.freeze({ ...config.network, proxy: redactProxyUrl(config.network.proxy) })
@@ -179,7 +184,7 @@ function createClient(options = {}) {
       await sessionManager.setSession(initialSession);
       outboundQueue = new OutboundOperationQueue(config.pacing, options.pacingRuntime);
       api = loadApi(client, {
-        operations: options.apiOperations || {},
+        operations: operationRegistry,
         hooks: options.apiHooks || {},
         outboundQueue
       });
