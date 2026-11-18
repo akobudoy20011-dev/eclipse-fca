@@ -37,3 +37,14 @@ test('returns immutable normalized configuration', () => {
   assert.ok(Object.isFrozen(config.network));
   assert.ok(Object.isFrozen(DEFAULT_CONFIG));
 });
+
+test('supports opt-in atomic file session storage configuration', () => {
+  const config = normalizeConfig({
+    session: { storage: 'file', directory: './.eclipse-sessions' }
+  });
+  assert.equal(config.session.storage, 'file');
+  assert.equal(config.session.directory, './.eclipse-sessions');
+  assert.throws(() => normalizeConfig({ session: { storage: 'file' } }), {
+    code: 'ERR_CONFIGURATION'
+  });
+});
