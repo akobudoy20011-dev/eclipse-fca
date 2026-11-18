@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeAppState, serializeCookies, mergeSetCookie } = require('../utils/cookies');
+const { validateFacebookUrl } = require('../utils/url-security');
 const { TokenManager } = require('./token-manager');
 const { TransportError } = require('./errors');
 
@@ -13,21 +14,22 @@ async function loginWithAppState(options = {}) {
     throw new TypeError('loginWithAppState requires a sessionStore.');
   }
 
+  const homeUrl = options.homeUrl || 'https://www.facebook.com/';
+  validateFacebookUrl(homeUrl, 'https:', 'Login URL');
   let cookies = normalizeAppState(options.appState);
   const response = await requestClient.request({
     method: 'GET',
-    url: options.homeUrl || 'https://www.facebook.com/',
+    url: homeUrl,
     headers: { cookie: serializeCookies(cookies) },
     responseType: 'text'
   });
 
   const html = typeof response.data === 'string' ? response.data : '';
   const tokenManager = new TokenManager();
-  const tokens = tokenManager.updateFromHtml(html);
-  if (!tokens.userId) {
+  tokenManager.updateFromHtml(html);
+  if (!tokenManager.snapshot().userId) {
     const cUser = cookies.find(cookie => cookie.key === 'c_user')?.value;
     if (cUser && /^\d+$/.test(cUser)) {
-      // The authenticated account cookie is the authoritative actor identifier.
       tokenManager.updateFromHtml(`"USER_ID":"${cUser}"`);
     }
   }
