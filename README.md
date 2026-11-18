@@ -191,7 +191,7 @@ const client = createClient({
 });
 ```
 
-Or override individual descriptors in code using `apiOperations`; code overrides take precedence over matching registry entries. Registry variable templates support literal JSON values plus `{"$input":"fieldName"}`, `{"$inputOptional":"fieldName"}`, and `{"$session":"fieldName"}` references. Templates are data only; they are never evaluated as JavaScript. Unknown descriptor keys and unsupported registry versions are rejected.
+Or override individual descriptors in code using `apiOperations`; code overrides take precedence over matching registry entries. Each descriptor may include an `input_schema` that checks required fields, basic JSON value types, nullable optional fields, and unknown keys before variable construction. Registry variable templates support literal JSON values plus `{"$input":"fieldName"}`, `{"$inputOptional":"fieldName"}`, and `{"$session":"fieldName"}` references. Templates are data only; they are never evaluated as JavaScript. Unknown descriptor keys and unsupported registry versions are rejected.
 
 Example descriptor shape (replace the placeholder only with a verified value):
 
