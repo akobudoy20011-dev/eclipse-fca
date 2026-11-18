@@ -5,7 +5,8 @@ const path = require('node:path');
 const { ConfigurationError } = require('../core/errors');
 
 const DEFAULT_REGISTRY_PATH = path.join(__dirname, 'operations.json');
-const ALLOWED_KEYS = new Set(['doc_id', 'endpoint', 'friendly_name', 'mutation', 'variables']);
+const ALLOWED_KEYS = new Set(['doc_id', 'endpoint', 'friendly_name', 'mutation', 'variables', 'input_schema']);
+const ALLOWED_SCHEMA_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'array', 'object']);
 
 function resolveTemplate(value, input, session) {
   if (Array.isArray(value)) return value.map(item => resolveTemplate(item, input, session));
@@ -35,6 +36,51 @@ function resolveTemplate(value, input, session) {
     result[key] = resolveTemplate(nested, input, session);
   }
   return result;
+}
+
+function validateInputSchema(schema, input, operationName) {
+  if (!schema) return;
+  if (!schema || schema.type !== 'object' || !schema.properties ||
+      typeof schema.properties !== 'object' || Array.isArray(schema.properties) ||
+      (schema.required !== undefined && (!Array.isArray(schema.required) ||
+        schema.required.some(key => typeof key !== 'string'))) ||
+      (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== 'boolean')) {
+    throw new ConfigurationError('Operation registry input_schema for "' + operationName + '" is invalid.');
+  }
+  for (const [key, property] of Object.entries(schema.properties)) {
+    if (!property || typeof property !== 'object' || !ALLOWED_SCHEMA_TYPES.has(property.type) ||
+        (property.nullable !== undefined && typeof property.nullable !== 'boolean')) {
+      throw new ConfigurationError('Operation registry input_schema property is invalid.');
+    }
+    if (Object.keys(property).some(field => !['type', 'nullable'].includes(field))) {
+      throw new ConfigurationError('Unsupported operation registry input_schema property constraint.');
+    }
+  }
+  for (const key of schema.required || []) {
+    if (!Object.prototype.hasOwnProperty.call(schema.properties, key)) {
+      throw new ConfigurationError('Operation registry required input is not declared in properties.');
+    }
+    if (!Object.prototype.hasOwnProperty.call(input, key)) {
+      throw new ConfigurationError('Operation "' + operationName + '" is missing a required input field.');
+    }
+  }
+  if (schema.additionalProperties === false) {
+    for (const key of Object.keys(input)) {
+      if (!Object.prototype.hasOwnProperty.call(schema.properties, key)) {
+        throw new ConfigurationError('Operation "' + operationName + '" received an unsupported input field.');
+      }
+    }
+  }
+  for (const [key, value] of Object.entries(input)) {
+    const property = schema.properties[key];
+    if (!property) continue;
+    if (value === null && property.nullable) continue;
+    const actual = Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value;
+    const valid = property.type === 'integer'
+      ? Number.isInteger(value)
+      : actual === property.type;
+    if (!valid) throw new ConfigurationError('Operation "' + operationName + '" input field "' + key + '" has an invalid type.');
+  }
 }
 
 function normalizeDescriptor(name, descriptor) {
@@ -69,6 +115,7 @@ function normalizeDescriptor(name, descriptor) {
       if (!input || typeof input !== 'object' || Array.isArray(input)) {
         throw new ConfigurationError('Operation input must be an object.');
       }
+      validateInputSchema(descriptor.input_schema, input, name);
       return resolveTemplate(descriptor.variables, input, session);
     }
   });
@@ -110,5 +157,6 @@ module.exports = {
   DEFAULT_REGISTRY_PATH,
   loadOperationsRegistry,
   mergeOperationRegistries,
-  resolveTemplate
+  resolveTemplate,
+  validateInputSchema
 };
