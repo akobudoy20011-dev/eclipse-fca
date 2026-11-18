@@ -16,6 +16,20 @@ const { TokenManager } = require('./token-manager');
 const { StateError, TransportError } = require('./errors');
 const { INTERNAL_SESSION } = require('./internal');
 
+function combineAbortSignals(first, second) {
+  if (!first) return second;
+  if (!second) return first;
+  const controller = new AbortController();
+  const abort = signal => {
+    if (!controller.signal.aborted) controller.abort(signal.reason);
+  };
+  if (first.aborted) abort(first);
+  else first.addEventListener('abort', () => abort(first), { once: true });
+  if (second.aborted) abort(second);
+  else second.addEventListener('abort', () => abort(second), { once: true });
+  return controller.signal;
+}
+
 function redactProxyUrl(value) {
   if (!value) return null;
   try {
@@ -131,7 +145,10 @@ function createClient(options = {}) {
       if (sessionManager && !hasCookie && isFacebookHttpsUrl(input?.url)) {
         headers.cookie = sessionManager.getCookieHeader();
       }
-      const response = await requestClient.request({ ...input, headers });
+      const signal = sessionManager
+        ? combineAbortSignals(input?.signal, sessionManager.getAbortSignal())
+        : input?.signal;
+      const response = await requestClient.request({ ...input, headers, signal });
       if (sessionManager) await sessionManager.handleResponse(response);
       return response;
     },
