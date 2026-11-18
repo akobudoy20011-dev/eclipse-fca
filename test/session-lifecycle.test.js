@@ -53,11 +53,9 @@ test('critical Set-Cookie changes are written back to session storage', async ()
   assert.equal(persisted.cookies.find(cookie => cookie.key === 'fr').value, 'fr-two');
 });
 
-test('non-critical cookie changes do not trigger a session disk write', async () => {
+test('non-critical cookie changes do not trigger a session store write', async () => {
   let writes = 0;
-  const store = {
-    async set() { writes += 1; }
-  };
+  const store = { async set() { writes += 1; } };
   const manager = new SessionManager({ sessionStore: store });
   await manager.setSession(session);
   await manager.handleResponse({
@@ -129,7 +127,7 @@ test('token refresh scheduler applies bounded jitter and can stop', () => {
   assert.equal(scheduler.running, false);
 });
 
-test('client persists critical cookie rotations and trips on checkpoint responses', async () => {
+test('client persists critical cookie rotations and stops its scheduler on disconnect', async () => {
   const store = new MemorySessionStore();
   let call = 0;
   const client = createClient({
@@ -156,9 +154,11 @@ test('client persists critical cookie rotations and trips on checkpoint response
     { key: 'c_user', value: '12345' },
     { key: 'xs', value: 'session-one' }
   ]);
+  assert.equal(client.state, 'authenticated');
   await client.request({ url: 'https://www.facebook.com/me' });
   assert.equal((await store.get('default')).cookies.find(cookie => cookie.key === 'xs').value, 'session-rotated');
   await client.disconnect();
+  assert.equal(client.state, 'disconnected');
 });
 
 test('client marks stored session invalidated and blocks later requests after checkpoint redirect', async () => {
