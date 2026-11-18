@@ -58,3 +58,10 @@ test('requires an authenticated session and valid topic list', () => {
     code: 'ERR_CONFIGURATION'
   });
 });
+
+test('classifies MQTT checkpoint and authentication error payloads', () => {
+  const { expiryReasonFromPayload } = require('../src/mqtt/client');
+  assert.equal(expiryReasonFromPayload({ type: 'checkpoint' }), 'checkpoint');
+  assert.equal(expiryReasonFromPayload({ errorCode: 1357001 }), 'auth_error');
+  assert.equal(expiryReasonFromPayload({ type: 'message', text: 'hello' }), null);
+});
