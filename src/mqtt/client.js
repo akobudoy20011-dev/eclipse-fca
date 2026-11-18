@@ -4,13 +4,12 @@ const { EventEmitter } = require('node:events');
 const { TransportError, ConfigurationError } = require('../core/errors');
 const { createProxyAgents } = require('../core/proxy');
 const { serializeCookies } = require('../utils/cookies');
+const { validateFacebookUrl } = require('../utils/url-security');
 const { decodePayload } = require('./decoder');
 
 function createMqttListener(options = {}) {
   const { endpoint, session, network = { mode: 'direct' }, topics = [], mqttOptions = {} } = options;
-  if (typeof endpoint !== 'string' || !/^wss:\/\//i.test(endpoint)) {
-    throw new ConfigurationError('A valid wss:// MQTT endpoint must be explicitly configured.');
-  }
+  validateFacebookUrl(endpoint, 'wss:', 'MQTT endpoint');
   if (!session?.userId || !Array.isArray(session.cookies)) {
     throw new ConfigurationError('An authenticated session is required before starting MQTT.');
   }
