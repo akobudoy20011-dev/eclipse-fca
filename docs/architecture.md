@@ -46,3 +46,8 @@ An injected client transport may implement connect({ config, sessionStore, sessi
 - Proxy mode must be explicitly selected and supplied with a proxy URL.
 - Session storage defaults to memory.
 - Configuration is normalized and frozen when the client is created.
+
+
+## Protocol fixture workflow
+
+The test suite replays deterministic synthetic MQTT and GraphQL fixtures from test/fixtures. These prove parser and error-handling behavior only; they are not real Messenger captures and do not establish protocol compatibility. Real authorized captures must be sanitized offline, reviewed for secrets and personal data, reduced to minimal fixtures, and accompanied by provenance and verification notes before they are committed. Fixture tests are offline and must never require a live account or session.
