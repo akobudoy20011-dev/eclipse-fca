@@ -156,6 +156,13 @@ test('client loads a custom operation registry and applies verified descriptors'
       pacing: { mutationJitterMinMs: 0, mutationJitterMaxMs: 0 },
       requestClient: {
         async request(input) {
+          if (input.method !== 'POST') {
+            return {
+              data: '<input name="fb_dtsg" value="fresh-token">"USER_ID":"12345"',
+              status: 200,
+              headers: {}
+            };
+          }
           sent = input;
           return { data: '{"data":{"thread":{"id":"thread-1"}}}', status: 200, headers: {} };
         }
