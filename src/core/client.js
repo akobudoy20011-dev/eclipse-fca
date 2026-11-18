@@ -11,8 +11,27 @@ const { loadApi } = require('./api-loader');
 const { createMqttListener } = require('../mqtt/client');
 const { StateError, TransportError } = require('./errors');
 
+function redactProxyUrl(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.username) url.username = '[redacted]';
+    if (url.password) url.password = '[redacted]';
+    return url.toString();
+  } catch {
+    return '[configured]';
+  }
+}
+
 function createClient(options = {}) {
   const config = normalizeConfig(options);
+  const publicConfig = Object.freeze({
+    ...config,
+    network: Object.freeze({
+      ...config.network,
+      proxy: redactProxyUrl(config.network.proxy)
+    })
+  });
   const transport = options.transport ?? null;
   const sessionStore = options.sessionStore ?? new MemorySessionStore();
   const requestClient = options.requestClient ?? createRequestClient(config, options.http || {});
@@ -30,7 +49,7 @@ function createClient(options = {}) {
 
   const client = {
     get state() { return state; },
-    get config() { return config; },
+    get config() { return publicConfig; },
     get session() {
       return session ? {
         userId: session.userId,
