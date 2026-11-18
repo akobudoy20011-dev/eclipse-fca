@@ -51,16 +51,16 @@ function createMqttListener(options = {}) {
     wsOptions.agent = agents.httpsAgent;
   }
 
+  const acknowledgementDispatcher = createAcknowledgementDispatcher({
+    config: acknowledgements,
+    hooks,
+    onError: event => emitter.emit('acknowledgement_error', event)
+  });
   const connection = mqtt.connect(endpoint, {
     protocolVersion: 4,
     reconnectPeriod: 0,
     ...mqttOptions,
     wsOptions
-  });
-  const acknowledgementDispatcher = createAcknowledgementDispatcher({
-    config: acknowledgements,
-    hooks,
-    onError: event => emitter.emit('acknowledgement_error', event)
   });
   let expiryHandled = false;
   const trip = reason => {
