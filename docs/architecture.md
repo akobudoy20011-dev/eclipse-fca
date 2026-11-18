@@ -61,3 +61,11 @@ The test suite replays deterministic synthetic MQTT and GraphQL fixtures from te
 - A refresh mutex serializes refresh work; client HTTP/API calls wait for an active refresh to settle.
 - Checkpoint/logout redirects, known authentication error codes, and removal of required `c_user`/`xs` cookies trip a terminal circuit breaker. The session is persisted as invalidated, in-flight HTTP requests are aborted, the realtime transports and scheduler are stopped, and `session_expired` is emitted.
 - A fresh explicit login creates a new session manager/breaker. No automatic checkpoint retry or authentication bypass is attempted.
+
+
+## Browser profile and pacing
+
+- `browserProfile` is normalized and frozen at client creation. The same User-Agent, `Sec-CH-UA*`, and `Sec-Fetch-*` profile is applied to HTTP requests and MQTT WebSocket handshakes. The configured values override conflicting per-request header values; the library does not rotate identities.
+- Outbound mutation operations pass through a shared queue. It serializes operations per endpoint/thread, maintains token buckets for each endpoint and thread, and applies configurable jitter (default 400–1600 ms). Default buckets have capacity 5 and refill at 1 token/second. `getThreadInfo` is treated as a read; custom descriptors may set `mutation: false`.
+- `sendMessage({ typingIndicator: true })` invokes the caller-supplied `apiHooks.sendTypingIndicator({ threadID, state: 'typ' })` immediately before the mutation request. The library does not fabricate a private typing payload.
+- MQTT acknowledgements are opt-in through `mqtt.acknowledgements`. Delayed `markAsDelivered` and `markAsRead` callbacks must be supplied by the application. They receive normalized MQTT message events; no unverified receipt wire format is implemented. Pending acknowledgement timers are cancelled when the listener closes.
