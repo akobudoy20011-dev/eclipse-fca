@@ -2,7 +2,7 @@
 
 An independently maintained, modular Node.js client foundation for authorized Messenger sessions.
 
-> **Development status:** Foundation, HTTP transport wrapper, explicit HTTP/SOCKS proxy agents, and appState session bootstrap are present. MQTT/WebSocket connectivity and Messenger API operations are not implemented yet. Facebook page markup and private endpoints can change without notice; successful token extraction is not guaranteed until validated against maintained fixtures and authorized integration tests.
+> **Development status:** AppState bootstrap, HTTP/proxy transport, configurable MQTT-over-WebSocket listener, and five injectable API modules are implemented. Actual Facebook MQTT topic schemas and private GraphQL operation identifiers are not bundled because they require verification against authorized protocol captures. This project does not claim drop-in ws3-fca compatibility yet.
 
 ## Requirements
 
@@ -19,55 +19,64 @@ npm run check
 
 ## Current capabilities
 
-- CommonJS package and explicit client lifecycle.
-- AppState cookie normalization and validation (requires `c_user` and `xs`).
-- Authenticated landing-page request and best-effort extraction of `fb_dtsg`, `lsd`, `jazoest`, and account ID.
-- In-memory session storage by default; session cookies are not exposed by the client's public session getter.
-- Central Axios HTTP wrapper with timeout, bounded response sizes, and redacted error details.
-- Direct network mode by default; optional HTTP, HTTPS, SOCKS4, and SOCKS5 proxy agents.
-- Proxy mode is explicit. A proxy initialization or connection failure is surfaced; there is no silent direct-network fallback.
-- Authenticated client requests automatically attach the current session cookie header.
+- CommonJS client with explicit lifecycle and in-memory session store.
+- AppState cookie validation and best-effort extraction of `fb_dtsg`, `lsd`, `jazoest`, and account ID.
+- Central HTTP client and explicit HTTP/HTTPS/SOCKS proxy agents.
+- Configurable MQTT.js WebSocket listener with subscriptions, publish, JSON decoding, raw-payload preservation, and event forwarding.
+- MQTT WebSocket proxy uses the configured HTTPS proxy agent; proxy errors do not silently switch to direct mode.
+- API methods are injected into `client.api` after successful appState login:
+  - `sendMessage` (including validated mention ranges)
+  - `createPoll`
+  - `commentPost` (including nested reply parent IDs)
+  - `joinCall` (application-provided signaling hook)
+  - `getThreadInfo`
 
-## Authentication limits
+## Configure verified operations
 
-This release accepts an existing, authorized appState session. It does not collect account passwords, automate credential login, defeat checkpoints, bypass two-factor challenges, rotate identities to evade detection, or retry through security challenges. Token extraction is best-effort and based on observed page markup; there is not yet a verified automatic token-expiry refresh flow. If Facebook requires a checkpoint or changes its login page, the library must stop and surface the failure.
-
-Never log, publish, or commit appState cookies, access tokens, or raw session objects.
-
-## Network configuration
-
-Direct mode is the default:
-
-```js
-const client = createClient();
-```
-
-Explicit proxy mode:
-
-```js
-const client = createClient({
-  network: {
-    mode: 'proxy',
-    proxy: 'socks5h://username:password@proxy.example:1080'
-  }
-});
-```
-
-Use `http://`, `https://`, `socks4://`, `socks4a://`, `socks5://`, or `socks5h://` proxy URLs. Keep credentials in environment variables or a secret manager, never source control. Both HTTP and HTTPS requests use the selected proxy agents in proxy mode.
-
-## AppState example
+Facebook's private GraphQL schemas and doc IDs are not stable public contracts. Supply verified descriptors from protocol captures you are authorized to use. Each descriptor requires a real `docId` and either a `buildVariables(input, session)` function or a variables object.
 
 ```js
 const { createClient } = require('eclipse-fca');
 
-const client = createClient();
-const result = await client.login(appState);
-console.log('Authenticated account:', result.userId);
-// client.request(...) now includes the session cookie automatically.
+const client = createClient({
+  apiOperations: {
+    sendMessage: {
+      docId: process.env.FB_SEND_MESSAGE_DOC_ID,
+      buildVariables: ({ threadID, body, mentions }) => ({
+        // Map these fields to the verified operation's actual variables.
+        threadID, body, mentions
+      })
+    }
+  },
+  mqtt: {
+    endpoint: process.env.FB_MQTT_WEBSOCKET_URL,
+    topics: (process.env.FB_MQTT_TOPICS || '').split(',').filter(Boolean)
+  }
+});
+
+await client.login(appState);
+await client.api.sendMessage({
+  threadID: 'thread-id',
+  body: 'Hello @Sam',
+  mentions: [{ tag: '@Sam', id: 'user-id', fromIndex: 6 }]
+});
+
+const listener = client.listen();
+listener.on('message', event => {
+  // Decode only payload formats your application has verified.
+});
 ```
 
-The example assumes `appState` is supplied securely by the application. It is not a guarantee that Facebook will accept the session or expose all expected page tokens.
+The example's operation mapping is illustrative; the supplied doc ID, variable names, endpoint, MQTT endpoint, and topics must be verified for the account and protocol version. No Facebook endpoint or doc ID is hard-coded as a claimed working operation.
 
-## Safety and account access
+## MQTT and calls
 
-Use only accounts and sessions you are authorized to access. Respect platform terms, rate limits, and account security challenges. The library must not silently bypass checkpoints or fall back to a different network route.
+`client.listen()` requires a valid `wss://` endpoint, an authenticated session, and caller-supplied topic names. It forwards decoded JSON events and preserves unknown payloads as raw text. It does not claim to decode every Messenger binary payload or know undocumented topic names.
+
+`joinCall` invokes a configured operation and forwards any returned signaling data to your application-provided `apiHooks.onSignal`. It does not implement a media stack, WebRTC negotiation, microphone/camera access, or platform-specific call signaling by itself.
+
+## Authentication and safety limits
+
+This release accepts an existing authorized appState session. It does not collect passwords, evade checkpoints, bypass two-factor challenges, rotate identities to evade detection, or retry through security challenges. Token extraction is best-effort; automatic token-expiry refresh is not yet verified. Never log or commit appState cookies, tokens, or raw session objects.
+
+Use only accounts and sessions you are authorized to access, and respect platform terms and rate limits.
