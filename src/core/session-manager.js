@@ -31,10 +31,12 @@ class SessionManager {
     this.session = null;
     this.refreshProvider = typeof options.refreshProvider === 'function' ? options.refreshProvider : null;
     this.refreshPromise = null;
+    this.abortController = new AbortController();
   }
 
   async setSession(session) {
     this.breaker.assertClosed();
+    this.abortController = new AbortController();
     this.session = { ...session, cookies: session.cookies.map(cookie => ({ ...cookie })), tokens: { ...session.tokens }, invalidated: false };
     await this.store.set(this.sessionKey, this.session);
     return this.snapshot();
@@ -52,6 +54,10 @@ class SessionManager {
 
   getCookieHeader() {
     return this.session ? serializeCookies(this.session.cookies) : '';
+  }
+
+  getAbortSignal() {
+    return this.abortController.signal;
   }
 
   getSessionForTransport() {
@@ -124,6 +130,7 @@ class SessionManager {
 
   async invalidate(reason) {
     if (!this.breaker.trip(reason)) return false;
+    this.abortController.abort();
     let persistenceFailed = false;
     if (this.session) {
       this.session = { ...this.session, invalidated: true, invalidatedAt: this.breaker.trippedAt };
