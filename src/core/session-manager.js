@@ -52,6 +52,15 @@ class SessionManager {
     return this.session ? serializeCookies(this.session.cookies) : '';
   }
 
+  getSessionForTransport() {
+    return this.session ? {
+      userId: this.session.userId,
+      cookies: this.session.cookies.map(cookie => ({ ...cookie })),
+      tokens: { ...this.session.tokens },
+      authenticatedAt: this.session.authenticatedAt
+    } : null;
+  }
+
   getCookiesForRefresh() {
     return this.session ? this.session.cookies.map(cookie => ({ ...cookie })) : [];
   }
