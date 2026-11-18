@@ -3,6 +3,26 @@
 const { ConfigurationError, TransportError } = require('../core/errors');
 const { validateFacebookUrl } = require('../utils/url-security');
 
+function parseOperationResponse(raw, name = 'operation', status) {
+  const normalized = typeof raw === 'string' ? raw.replace(/^for\\s*\\(;;\\);?\\s*/, '') : raw;
+  let data = normalized;
+  if (typeof normalized === 'string') {
+    try { data = JSON.parse(normalized); } catch {
+      throw new TransportError(`API operation "${name}" returned an unrecognized response.`, {
+        code: 'ERR_API_RESPONSE_PARSE',
+        details: { operation: name, status }
+      });
+    }
+  }
+  if (data?.errors?.length) {
+    throw new TransportError(`API operation "${name}" returned an application error.`, {
+      code: 'ERR_API_APPLICATION',
+      details: { operation: name, errorCount: data.errors.length }
+    });
+  }
+  return data;
+}
+
 function createOperationExecutor(client, operationMap = {}) {
   return async function execute(name, input) {
     const operation = operationMap[name];
@@ -52,25 +72,8 @@ function createOperationExecutor(client, operationMap = {}) {
       responseType: 'text'
     });
 
-    const raw = typeof response.data === 'string' ? response.data.replace(/^for\s*\(;;\);?\s*/, '') : response.data;
-    let data = raw;
-    if (typeof raw === 'string') {
-      try { data = JSON.parse(raw); } catch (cause) {
-        throw new TransportError(`API operation "${name}" returned an unrecognized response.`, {
-          code: 'ERR_API_RESPONSE_PARSE',
-          cause,
-          details: { operation: name, status: response.status }
-        });
-      }
-    }
-    if (data?.errors?.length) {
-      throw new TransportError(`API operation "${name}" returned an application error.`, {
-        code: 'ERR_API_APPLICATION',
-        details: { operation: name, errorCount: data.errors.length }
-      });
-    }
-    return data;
+    return parseOperationResponse(response.data, name, response.status);
   };
 }
 
-module.exports = { createOperationExecutor };
+module.exports = { createOperationExecutor, parseOperationResponse };
