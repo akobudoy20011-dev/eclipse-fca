@@ -30,10 +30,7 @@ function createClient(options = {}) {
   const config = normalizeConfig(options);
   const publicConfig = Object.freeze({
     ...config,
-    network: Object.freeze({
-      ...config.network,
-      proxy: redactProxyUrl(config.network.proxy)
-    })
+    network: Object.freeze({ ...config.network, proxy: redactProxyUrl(config.network.proxy) })
   });
   const transport = options.transport ?? null;
   const sessionStore = options.sessionStore ?? new MemorySessionStore();
@@ -45,7 +42,6 @@ function createClient(options = {}) {
   let refreshScheduler = null;
   let api = null;
   let mqttListener = null;
-  let activeSessionKey = 'default';
 
   function setState(next) {
     state = next;
@@ -57,10 +53,10 @@ function createClient(options = {}) {
     if (mqttListener) {
       const listener = mqttListener;
       mqttListener = null;
-      await listener.close().catch(() => {});
+      await Promise.resolve().then(() => listener.close()).catch(() => {});
     }
     if (transport && typeof transport.disconnect === 'function') {
-      await transport.disconnect().catch(() => {});
+      await Promise.resolve().then(() => transport.disconnect()).catch(() => {});
     }
     setState('invalidated');
   }
@@ -73,7 +69,7 @@ function createClient(options = {}) {
         const response = await requestClient.request({
           method: 'GET',
           url: options.session?.refreshUrl || 'https://www.facebook.com/',
-          headers: { cookie: serializeCookies(current.cookies) },
+          headers: { cookie: sessionManager.getCookieHeader() },
           responseType: 'text'
         });
         const expiry = responseExpiryReason(response);
@@ -84,7 +80,7 @@ function createClient(options = {}) {
         const tokenManager = new TokenManager();
         tokenManager.updateFromHtml(typeof response.data === 'string' ? response.data : '');
         const extracted = tokenManager.snapshot();
-        const cookies = mergeSetCookie(current.cookies, response.headers?.['set-cookie']);
+        const cookies = mergeSetCookie(sessionManager.getCookiesForRefresh(), response.headers?.['set-cookie']);
         const userCookie = cookies.find(cookie => cookie.key === 'c_user')?.value;
         if (!userCookie || userCookie !== current.userId || !extracted.fb_dtsg) {
           throw new StateError('Session token refresh could not verify the existing account.', {
@@ -127,9 +123,8 @@ function createClient(options = {}) {
       if (sessionManager) await sessionManager.waitForRefresh();
       const headers = { ...(input?.headers || {}) };
       const hasCookie = Object.keys(headers).some(key => key.toLowerCase() === 'cookie');
-      const current = sessionManager?.snapshot();
-      if (current && !hasCookie && isFacebookHttpsUrl(input?.url)) {
-        headers.cookie = serializeCookies(current.cookies);
+      if (sessionManager && !hasCookie && isFacebookHttpsUrl(input?.url)) {
+        headers.cookie = sessionManager.getCookieHeader();
       }
       const response = await requestClient.request({ ...input, headers });
       if (sessionManager) await sessionManager.handleResponse(response);
@@ -147,18 +142,14 @@ function createClient(options = {}) {
       }
       if (refreshScheduler) refreshScheduler.stop();
       if (mqttListener) {
-        await mqttListener.close().catch(() => {});
+        await Promise.resolve().then(() => mqttListener.close()).catch(() => {});
         mqttListener = null;
       }
-      activeSessionKey = loginOptions.sessionKey || 'default';
+      const sessionKey = loginOptions.sessionKey || 'default';
       const initialSession = await loginWithAppState({
-        appState,
-        requestClient,
-        sessionStore,
-        sessionKey: activeSessionKey,
-        homeUrl: loginOptions.homeUrl
+        appState, requestClient, sessionStore, sessionKey, homeUrl: loginOptions.homeUrl
       });
-      sessionManager = createManager(activeSessionKey);
+      sessionManager = createManager(sessionKey);
       await sessionManager.setSession(initialSession);
       api = loadApi(client, {
         operations: options.apiOperations || {},
@@ -184,7 +175,7 @@ function createClient(options = {}) {
       const settings = { ...(options.mqtt || {}), ...mqttOptions };
       mqttListener = createMqttListener({
         ...settings,
-        session: sessionManager.snapshot(),
+        session: { userId: sessionManager.snapshot().userId, cookies: sessionManager.getCookiesForRefresh() },
         network: config.network,
         onSessionExpired: reason => sessionManager.invalidate(reason)
       });
@@ -206,16 +197,14 @@ function createClient(options = {}) {
           { code: 'ERR_TRANSPORT_NOT_CONFIGURED' }
         );
       }
-
       connectPromise = (async () => {
         setState('connecting');
         try {
           await transport.connect({
-            config, sessionStore, session: sessionManager?.snapshot(),
+            config, sessionStore,
+            session: sessionManager?.snapshot(),
             request: client.request.bind(client),
-            requestClient,
-            api,
-            emit: emitter.emit.bind(emitter)
+            requestClient, api, emit: emitter.emit.bind(emitter)
           });
           setState('connected');
           emitter.emit('connected');
