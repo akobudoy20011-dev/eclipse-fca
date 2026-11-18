@@ -70,3 +70,20 @@ test('rejects unsupported registry descriptor fields and schema versions', () =>
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('validates registry input schemas before building GraphQL variables', () => {
+  const registry = loadOperationsRegistry();
+  assert.throws(() => registry.sendMessage.buildVariables({
+    threadID: 42,
+    body: 'hello'
+  }, {}), /invalid type/);
+  assert.throws(() => registry.sendMessage.buildVariables({
+    threadID: 'thread-1',
+    body: 'hello',
+    unexpected: true
+  }, {}), /unsupported input field/);
+  assert.deepEqual(registry.commentPost.buildVariables({
+    postID: 'post-1',
+    message: 'reply'
+  }, {}).input.parentCommentID, null);
+});
